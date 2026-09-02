@@ -1,0 +1,22 @@
+/* ═══════════════════════════════════════════════════
+   theme.css — 색 · 글꼴 · 기본 리셋
+   톤을 바꾸고 싶으면 여기 :root 변수만 고치면 됩니다.
+   ═══════════════════════════════════════════════════ */
+:root{
+  --disp:'Black Han Sans',system-ui,sans-serif;
+  --body:'Gothic A1',system-ui,sans-serif;
+  --num:'Oxanium','Gothic A1',monospace;
+  --ink:#14202f; --paper:#f6f1e4; --paper2:#fffdf6;
+  --line:#d8ceb6; --muted:#6d7f92;
+  --gold:#f4c04f; --leaf:#6fc98a; --sky:#79c8f2;
+  --solar:#f6b93b; --thermal:#ef7a5a; --wind:#5ad3c4; --hydro:#5b9df9;
+  --geo:#e8674f; --ocean:#8f7ef0; --bio:#8dc63f; --waste:#c58bd6;
+  --h2:#4fd0e0; --cell:#7ae0a8;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden;background:#0d1524}
+body{font-family:var(--body);color:var(--ink);-webkit-user-select:none;user-select:none;
+  -webkit-tap-highlight-color:transparent;touch-action:none;overscroll-behavior:none}
+canvas{touch-action:none}
+canvas{display:block}
+#scene{position:fixed;inset:0}
