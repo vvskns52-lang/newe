@@ -73,19 +73,19 @@ const SHRINES = [
   { id:'geo',  ch:2, name:'지열 사당',     short:'지열',   icon:'🌋', col:0xe8674f, x: 62, z:-52,
     sub:'2차시 · 땅속 불의 심장',
     note:'땅속 깊이 100m마다 약 3℃씩 올라갑니다. 날씨를 타지 않아 1년 365일 24시간 발전하는 것이 최대 강점입니다.' },
-  { id:'oce',  ch:2, name:'해양 사당',     short:'해양',   icon:'🌊', col:0x8f7ef0, x:-84, z: 34,
+  { id:'oce',  ch:2, name:'해양 사당',     short:'해양',   icon:'🌊', col:0x8f7ef0, x: -63, z: 19,
     sub:'2차시 · 밀물과 썰물의 관문',
     note:'조력은 방조제로 수위차를 만들고(시화호), 조류는 댐 없이 빠른 물살을 쓰며(울돌목), 파력은 파도로 공기를 밀어 터빈을 돌립니다.' },
   { id:'bio',  ch:3, name:'바이오 사당',   short:'바이오', icon:'🌽', col:0x8dc63f, x: 78, z: 12,
     sub:'3차시 · 자라나는 연료의 들판',
     note:'액체(바이오에탄올)·기체(바이오가스)·고체(목재펠릿) 세 가지. 식물이 흡수한 CO₂만큼 되돌려주어 탄소중립에 가깝습니다.' },
-  { id:'wst',  ch:3, name:'폐기물 사당',   short:'폐기물', icon:'♻️', col:0xc58bd6, x: 62, z: 48,
+  { id:'wst',  ch:3, name:'폐기물 사당',   short:'폐기물', icon:'♻️', col:0xc58bd6, x:  59, z: 30,
     sub:'3차시 · 버려진 것이 다시 타오르는 곳',
     note:'쓰레기를 태운 열로 전기와 지역난방 온수를 만듭니다. 다이옥신을 막으려면 소각 온도를 850℃ 이상으로 유지해야 합니다.' },
-  { id:'h2',   ch:4, name:'수소 사당',     short:'수소',   icon:'⚛️', col:0x4fd0e0, x: -6, z: 84,
+  { id:'h2',   ch:4, name:'수소 사당',     short:'수소',   icon:'⚛️', col:0x4fd0e0, x:  -3, z: 66,
     sub:'4차시 · 물에서 태어나는 연료',
     note:'2H₂O → 2H₂ + O₂. 태양광·풍력 전기로 물을 쪼개 만든 수소가 탄소배출 없는 그린 수소입니다.' },
-  { id:'fc',   ch:4, name:'연료전지 사당', short:'연료전지',icon:'🔋', col:0x7ae0a8, x:-50, z: 70,
+  { id:'fc',   ch:4, name:'연료전지 사당', short:'연료전지',icon:'🔋', col:0x7ae0a8, x:  -8, z: 41,
     sub:'4차시 · 물만 남기는 발전기',
     note:'2H₂ + O₂ → 2H₂O + 전기. 물의 전기분해와 정반대 반응이며, 매연·소음이 거의 없어 도심 건물에 알맞습니다.' },
 ];
@@ -183,7 +183,19 @@ function hBase(x,z){
   h = h*(1-c)+7.4*c;
   return h;
 }
-SHRINES.forEach(s=>{ s.gy = hBase(s.x,s.z); });
+/* 사당이 바다에 잠기면 자동으로 안쪽으로 당겨 놓는다.
+   (지형 함수를 손봐도 "접근 불가 사당"이 다시 생기지 않도록 하는 안전장치) */
+SHRINES.forEach(s=>{
+  if(hBase(s.x, s.z) < 2){
+    const a = Math.atan2(s.z, s.x);
+    for(let r = Math.hypot(s.x, s.z); r > 30; r -= 1){
+      const x = Math.round(Math.cos(a)*r), z = Math.round(Math.sin(a)*r);
+      if(hBase(x, z) >= 5){ s.x = x; s.z = z; break; }
+    }
+    console.warn('[에너지크로니클] '+s.name+'이(가) 바다에 있어 ('+s.x+', '+s.z+')로 옮겼습니다.');
+  }
+  s.gy = hBase(s.x, s.z);
+});
 function hAt(x,z){
   let h = hBase(x,z);
   for(const s of SHRINES){                     // 사당 주변 평탄화
