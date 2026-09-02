@@ -320,10 +320,10 @@ function animate(){
     const cd=CAM.dist, cp=CAM.pitch;
     let cx=P.pos.x + Math.sin(CAM.yaw)*Math.cos(cp)*cd;
     let cz=P.pos.z + Math.cos(CAM.yaw)*Math.cos(cp)*cd;
-    let cyy=P.pos.y + 3.2 + Math.sin(cp)*cd;
+    let cyy=P.pos.y + 2.7 + Math.sin(cp)*cd;
     const gcy=hAt(cx,cz)+2.2; if(cyy<gcy) cyy=gcy;
     camera.position.set(cx,cyy,cz);
-    camera.lookAt(P.pos.x, P.pos.y+2.3, P.pos.z);
+    camera.lookAt(P.pos.x, P.pos.y+1.9, P.pos.z);
 
     /* 그림자 카메라 추종 */
     sun.position.set(P.pos.x+70, P.pos.y+110, P.pos.z+50);

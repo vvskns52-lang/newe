@@ -218,9 +218,9 @@ NPCS.forEach(n=>{
   const y=hAt(n.x,n.z); h.g.position.set(n.x,y,n.z);
   h.g.rotation.y = Math.atan2(-n.x, -n.z);
   const lb=makeLabel(n.name, n.role, '#'+new THREE.Color(n.col).getHexString());
-  lb.position.y=4.4; lb.scale.set(0.175,0.055,1); h.g.add(lb);
+  lb.position.y=3.7; lb.scale.set(0.175,0.055,1); h.g.add(lb);
   const mark=new THREE.Mesh(new THREE.OctahedronGeometry(0.3,0), new THREE.MeshBasicMaterial({color:0xffd24a}));
-  mark.position.y=3.7; h.g.add(mark);
+  mark.position.y=3.15; h.g.add(mark);
   scene.add(h.g);
   npcObjs.push({data:n, h, mark, y});
 });

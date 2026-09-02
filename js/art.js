@@ -110,69 +110,100 @@ const ROCK_GEO = new THREE.DodecahedronGeometry(1, 0);
 })();
 
 /* ═══════════════════════════════════════════
-   5등신 스타일라이즈 캐릭터
+   귀여운 네모 캐릭터 (약 3등신)
+   각진 실루엣은 그대로 두고, 머리를 크게 키운 뒤
+   큰 눈·하이라이트·볼터치·미소로 귀여움을 살립니다.
+   비율을 바꾸려면 아래 CHAR 값만 만지면 됩니다.
    ═══════════════════════════════════════════ */
+const CHAR = {
+  headW:1.09, headH:1.06, headD:1.02, headY:1.60,   // 머리 — 전체 키의 약 1/3
+  bodyW:0.96, bodyH:0.86, bodyD:0.62, bodyY:0.76,   // 발바닥이 0 에 닿도록 맞춘 값
+  legH :0.80, armH :0.74,
+};
 function makeHumanoid(o){
   o = o || {};
-  const skinM  = soft(o.skin  || ART.player.skin);
-  const clothM = matte (o.cloth || ART.player.tunic);
-  const pantsM = matte (o.pants || ART.player.pants);
-  const hairM  = matte (o.hair  || ART.player.hair);
-  const bootM  = matte (o.boot  || ART.player.boot);
+  const skinM  = matte(o.skin  || ART.player.skin);
+  const clothC = o.cloth || ART.player.tunic;
+  const clothM = matte(clothC);
+  const sleeveM= matte(new THREE.Color(clothC).multiplyScalar(0.84).getHex());
+  const pantsM = matte(o.pants || ART.player.pants);
+  const hairM  = matte(o.hair  || ART.player.hair);
+  const bootM  = matte(o.boot  || ART.player.boot);
   const g = new THREE.Group();
+  const C = CHAR;
 
-  /* 몸통 — 어깨는 넓고 허리로 갈수록 좁아진다 */
-  const torso = new THREE.Mesh(new THREE.CylinderGeometry(0.36, 0.25, 1.05, 8), clothM);
-  torso.position.y = 2.02; torso.castShadow = true; g.add(torso);
-  const collar = new THREE.Mesh(new THREE.SphereGeometry(0.355, 10, 6), clothM);
-  collar.position.y = 2.5; collar.scale.set(1, 0.5, 0.9); g.add(collar);
-  const belt = new THREE.Mesh(new THREE.CylinderGeometry(0.27, 0.27, 0.14, 8), matte(ART.city.wood));
-  belt.position.y = 1.5; g.add(belt);
-  const hip = new THREE.Mesh(new THREE.CylinderGeometry(0.27, 0.24, 0.34, 8), pantsM);
-  hip.position.y = 1.33; g.add(hip);
+  /* 몸통 */
+  const torso = new THREE.Mesh(new THREE.BoxGeometry(C.bodyW, C.bodyH, C.bodyD), clothM);
+  torso.position.y = C.bodyY + C.bodyH/2; torso.castShadow = true; g.add(torso);
+  const belt = new THREE.Mesh(new THREE.BoxGeometry(C.bodyW*1.04, 0.17, C.bodyD*1.04), matte(ART.city.wood));
+  belt.position.y = C.bodyY + 0.10; g.add(belt);
+  const collar = new THREE.Mesh(new THREE.BoxGeometry(C.bodyW*0.74, 0.16, C.bodyD*1.07),
+                                matte(o.cape === false ? (o.cloth || ART.player.tunic) : (o.cape || ART.player.cape)));
+  collar.position.y = C.bodyY + C.bodyH - 0.03; g.add(collar);
 
-  /* 머리 — 전체 키의 1/5 */
-  const head = new THREE.Mesh(new THREE.SphereGeometry(0.375, 12, 9), skinM);
-  head.position.y = 2.98; head.scale.set(1, 1.02, 0.95); head.castShadow = true; g.add(head);
-  const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.13, 0.16, 6), skinM);
-  neck.position.y = 2.62; g.add(neck);
-  const hair = new THREE.Mesh(new THREE.SphereGeometry(0.395, 12, 9, 0, 6.283, 0, 1.30), hairM);
-  hair.position.y = 2.99; hair.scale.set(1.02, 1.0, 1.0); g.add(hair);
-  const bang = new THREE.Mesh(new THREE.SphereGeometry(0.34, 10, 6, 0, 6.283, 0, 0.9), hairM);
-  bang.position.set(0, 3.03, 0.11); bang.rotation.x = 0.42; bang.scale.set(1.05, 0.7, 0.85); g.add(bang);
-  const eyeG = new THREE.SphereGeometry(0.052, 7, 6), eyeM = glow(0x27313f);
-  const e1 = new THREE.Mesh(eyeG, eyeM), e2 = new THREE.Mesh(eyeG, eyeM);
-  e1.position.set(-0.14, 2.97, 0.335); e2.position.set(0.14, 2.97, 0.335);
-  e1.scale.set(1,1.25,1); e2.scale.set(1,1.25,1); g.add(e1); g.add(e2);
+  /* 머리 — 크게 */
+  const head = new THREE.Mesh(new THREE.BoxGeometry(C.headW, C.headH, C.headD), skinM);
+  head.position.y = C.headY + C.headH/2; head.castShadow = true; g.add(head);
+  const hy = head.position.y;
+  const hairTop = new THREE.Mesh(new THREE.BoxGeometry(C.headW*1.06, 0.30, C.headD*1.06), hairM);
+  hairTop.position.y = hy + C.headH/2 - 0.03; g.add(hairTop);
+  const fringe = new THREE.Mesh(new THREE.BoxGeometry(C.headW*1.06, 0.26, 0.16), hairM);
+  fringe.position.set(0, hy + C.headH/2 - 0.26, C.headD/2 + 0.02); g.add(fringe);
+  [-1,1].forEach(sx=>{
+    const side = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.46, C.headD*1.02), hairM);
+    side.position.set(sx*(C.headW/2 + 0.02), hy + 0.10, 0); g.add(side);
+  });
 
-  /* 팔 — 어깨에서 회전하도록 피벗을 옮긴다 */
-  function limb(rTop, rBot, len, m, capM){
+  /* 얼굴 — 큰 눈 + 하이라이트 + 볼터치 + 미소 */
+  const fz = C.headD/2 + 0.015;
+  const white = matte(0xffffff), ink = matte(0x2a3441), blush = matte(0xffa9b4);
+  [-1,1].forEach(sx=>{
+    const eye = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.30, 0.03), white);
+    eye.position.set(sx*0.26, hy + 0.02, fz); g.add(eye);
+    const pupil = new THREE.Mesh(new THREE.BoxGeometry(0.155, 0.20, 0.03), ink);
+    pupil.position.set(sx*0.26, hy - 0.005, fz + 0.012); g.add(pupil);
+    const spark = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.07, 0.03), white);
+    spark.position.set(sx*0.30, hy + 0.09, fz + 0.024); g.add(spark);
+    const bl = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.09, 0.03), blush);
+    bl.position.set(sx*0.44, hy - 0.22, fz - 0.004); g.add(bl);
+  });
+  const mouth = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.05, 0.03), ink);
+  mouth.position.set(0, hy - 0.27, fz); g.add(mouth);
+  [-1,1].forEach(sx=>{
+    const up = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.05, 0.03), ink);
+    up.position.set(sx*0.10, hy - 0.235, fz); g.add(up);
+  });
+
+  /* 팔·다리 — 어깨/골반에서 회전하도록 피벗을 위로 */
+  function limb(w, h, d, m, capM){
     const grp = new THREE.Group();
-    const s = new THREE.Mesh(new THREE.CylinderGeometry(rTop, rBot, len, 6), m);
-    s.position.y = -len/2; s.castShadow = true; grp.add(s);
-    const cap = new THREE.Mesh(new THREE.SphereGeometry(rBot*1.15, 7, 6), capM || m);
-    cap.position.y = -len; grp.add(cap);
+    const s = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m);
+    s.position.y = -h/2; s.castShadow = true; grp.add(s);
+    if(capM){
+      const c = new THREE.Mesh(new THREE.BoxGeometry(w*1.05, h*0.26, d*1.05), capM);
+      c.position.y = -h + h*0.13; grp.add(c);
+    }
     return grp;
   }
-  const aL = limb(0.105, 0.085, 0.92, clothM, skinM); aL.position.set(-0.38, 2.42, 0); g.add(aL);
-  const aR = limb(0.105, 0.085, 0.92, clothM, skinM); aR.position.set( 0.38, 2.42, 0); g.add(aR);
-  const lL = limb(0.135, 0.115, 1.30, pantsM, bootM); lL.position.set(-0.145, 1.33, 0); g.add(lL);
-  const lR = limb(0.135, 0.115, 1.30, pantsM, bootM); lR.position.set( 0.145, 1.33, 0); g.add(lR);
+  const shY = C.bodyY + C.bodyH - 0.10;
+  const aL = limb(0.29, C.armH, 0.31, sleeveM, skinM); aL.position.set(-(C.bodyW/2 + 0.17), shY, 0); g.add(aL);
+  const aR = limb(0.29, C.armH, 0.31, sleeveM, skinM); aR.position.set( (C.bodyW/2 + 0.17), shY, 0); g.add(aR);
+  const lL = limb(0.36, C.legH, 0.38, pantsM, bootM); lL.position.set(-0.24, C.bodyY + 0.04, 0); g.add(lL);
+  const lR = limb(0.36, C.legH, 0.38, pantsM, bootM); lR.position.set( 0.24, C.bodyY + 0.04, 0); g.add(lR);
 
-  /* 망토 — 뒤를 감싸는 열린 원통 조각 */
+  /* 망토 — 납작한 판 하나 */
   let cape = null;
   if(o.cape !== false){
-    const capeM = new THREE.MeshLambertMaterial({
-      color:o.cape || ART.player.cape, flatShading:true, side:THREE.DoubleSide });
-    cape = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.30, 0.46, 1.30, 10, 1, true, Math.PI*0.62, Math.PI*0.76), capeM);
-    cape.position.set(0, 2.26, -0.07); cape.castShadow = true; g.add(cape);
+    cape = new THREE.Mesh(new THREE.BoxGeometry(C.bodyW*1.02, C.bodyH*1.35, 0.10),
+      matte(o.cape || ART.player.cape));
+    cape.position.set(0, C.bodyY + C.bodyH*0.55, -(C.bodyD/2 + 0.06));
+    cape.castShadow = true; g.add(cape);
   }
   if(o.hat){
-    const brim = new THREE.Mesh(new THREE.CylinderGeometry(0.46, 0.46, 0.05, 12), matte(o.hat));
-    brim.position.y = 3.16; g.add(brim);
-    const top = new THREE.Mesh(new THREE.CylinderGeometry(0.20, 0.28, 0.36, 10), matte(o.hat));
-    top.position.y = 3.35; g.add(top);
+    const brim = new THREE.Mesh(new THREE.BoxGeometry(C.headW*1.5, 0.09, C.headD*1.5), matte(o.hat));
+    brim.position.y = hy + C.headH/2 + 0.16; g.add(brim);
+    const top = new THREE.Mesh(new THREE.BoxGeometry(C.headW*0.72, 0.42, C.headD*0.72), matte(o.hat));
+    top.position.y = hy + C.headH/2 + 0.40; g.add(top);
   }
   return { g, aL, aR, lL, lR, head, torso, cape };
 }
