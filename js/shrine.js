@@ -48,6 +48,7 @@ function makeApi(s){
   api.step=i=>{
     if(api.doneSteps.has(i)||api.locked) return;
     api.doneSteps.add(i);
+    AUDIO.sfx('step');
     const e=api.stepEls[i]; e.classList.add('done'); e.querySelector('i').textContent='✓';
     e.animate([{transform:'scale(1)'},{transform:'scale(1.06)'},{transform:'scale(1)'}],{duration:420});
     if(api.doneSteps.size>=api.nSteps){ api.locked=true; setTimeout(()=>showQuiz(api),650); }
@@ -147,6 +148,7 @@ function showQuiz(api){
       if(i===q.a){
         b.classList.add('ok'); d.dataset.done='1';
         btns.forEach(o=>{ if(o!==b) o.disabled=true; });
+        AUDIO.sfx('right');
         react.className='askReact ok'; react.style.display='block';
         react.innerHTML=FACE+'<span>'+A.right+'</span>';
         ex.style.display='block';
@@ -155,6 +157,7 @@ function showQuiz(api){
       } else {
         tries++;
         b.classList.add('no'); b.disabled=true;
+        AUDIO.sfx('wrong');
         react.className='askReact no'; react.style.display='block';
         react.innerHTML=FACE+'<span>'+A.wrong+'</span>';
         /* 두 번 틀리면 배움 노트를 다시 펼쳐 준다 (답은 알려주지 않는다) */
@@ -179,6 +182,7 @@ function clearShrine(s){
   $('#clearIcon').textContent='💠';
   $('#clearTitle').textContent = first ? s.short+' 에너지 코어 획득!' : '시련을 다시 완수했다';
   $('#clearText').innerHTML = s.note + '<br><br><b style="color:#ffe08a">도시 전력 '+(coreCount()*10)+'%</b>' + (first?' &nbsp;·&nbsp; <b style="color:#8ef0a8">이 지역의 오염이 걷혔다</b>':'');
+  AUDIO.sfx('core');
   $('#shClear').classList.add('on');
   scrollShrineTop();
   $('#clearBtn').textContent = coreCount()>=10 ? '빛의 도시로 돌아가기 ▶' : '코어를 가지고 나가기';
@@ -188,6 +192,7 @@ function clearShrine(s){
 function clearFinal(s){
   const first = !STATE.finalDone;
   STATE.finalDone = true; STATE.hp=3; STATE.inv=2; save(); refreshHud();
+  AUDIO.sfx('clear');
   $('#clearIcon').textContent='🌇';
   $('#clearTitle').textContent = first ? '에너지 믹스 설계 완료!' : '다시 한 번 설계를 완성했다';
   $('#clearText').innerHTML =

@@ -51,6 +51,7 @@ addEventListener('keydown', e=>{
   const k=e.key.toLowerCase();
   keys[k]=true;
   if(k==='h'&&STATE.mode!=='shrine'){ $('#help').classList.toggle('on'); }
+  if(k==='k'){ AUDIO.init(); AUDIO.toggle(); refreshSnd(); }
   if(k==='escape'){ if(STATE.mode==='shrine') closeShrine(); else if(STATE.mode==='dialog') endDialog(); else $('#help').classList.remove('on'); }
   if(k==='m'&&STATE.mode==='play'){ $('#minimap').classList.toggle('big'); resizeMinimap(); }
   if(k==='e'&&STATE.mode==='play'){ interact(); }
@@ -310,6 +311,7 @@ let mmTick=0;
 function animate(){
   requestAnimationFrame(animate);
   const dt=Math.min(clock.getDelta(),0.05), t=clock.elapsedTime;
+  updateMood(dt);
   if(STATE.mode==='shrine'||STATE.mode==='ending') return;   // 사당/엔딩 중엔 3D 렌더 정지 (성능 절약)
 
   if(STATE.started && STATE.mode!=='shrine'){
@@ -440,6 +442,7 @@ function animate(){
       r.ring.scale.set(sc,sc,sc); r.ring2.scale.set(sc,sc,sc);
       if(d<RUNE_TAKE){
         STATE.runes[r.data.id]=true; r.g.visible=false; save(); refreshHud();
+        AUDIO.sfx('rune');
         toast('🔷','고대 룬 조각 '+runeCount()+' / 10 &nbsp;<span style="color:#6d7f92;font-weight:700">(관제탑 설비 예산 +'+RUNE_BONUS+'억)</span>',2600);
       }
     }
@@ -451,6 +454,7 @@ function animate(){
       sp.m.position.y = sp.base + Math.sin(t*1.6+sp.ph)*0.36;
       if(Math.hypot(sp.m.position.x-P.pos.x, sp.m.position.z-P.pos.z)<2.6 && Math.abs(sp.m.position.y-P.pos.y)<4){
         sp.got=true; sp.m.visible=false; STATE.sparks++; save(); refreshHud();
+        AUDIO.sfx('step');
         toast('✨','에너지 파편 +1 &nbsp;<span style="color:#6d7f92;font-weight:700">(3개 = 사당 힌트 1회)</span>',1700);
       }
     }
@@ -541,6 +545,7 @@ $('#startBtn').addEventListener('click', ()=>{
   $('#title').style.transition='.6s'; $('#title').style.opacity=0;
   setTimeout(()=>$('#title').style.display='none',620);
   $('#hud').classList.add('on');
+  AUDIO.init();                       /* 소리는 사용자가 누른 뒤에만 켤 수 있다 */
   STATE.started=true; STATE.mode='play';
   refreshHud(); updateCityLight();
   if(coreCount()>0){ toast('💾','이전 진행 상황을 불러왔습니다 (코어 '+coreCount()+'개)',3000);
@@ -551,6 +556,66 @@ $('#startBtn').addEventListener('click', ()=>{
 });
 $$('#monLv .chip').forEach((c,i)=>c.addEventListener('click',()=>setMonLevel(i)));
 setMonLevel(STATE.monLevel);
+
+/* ══════════════ 진행 초기화 ══════════════ */
+/* 저장은 이 기기·이 브라우저 안에만 있다(localStorage). 지우면 되돌릴 수 없으므로
+   실수로 눌리지 않게 "두 번 눌러야" 지워지도록 했다. 브라우저 기본 확인창은
+   쓰지 않는다 — 태블릿에서 창이 뜨면 게임 입력이 막힌다. */
+function resetProgress(){
+  try{ localStorage.removeItem('energyChronicle'); }catch(e){}
+  location.reload();
+}
+function armReset(btn){
+  if(btn.dataset.armed){ resetProgress(); return; }
+  btn.dataset.armed = '1';
+  btn.dataset.old = btn.innerHTML;
+  btn.innerHTML = '⚠ 정말 지울까요? 한 번 더 누르면 삭제';
+  btn.classList.add('danger');
+  clearTimeout(btn.__t);
+  btn.__t = setTimeout(()=>{
+    delete btn.dataset.armed; btn.innerHTML = btn.dataset.old; btn.classList.remove('danger');
+  }, 5000);
+}
+(function initReset(){
+  const r1=$('#resetBtn'), r2=$('#resetBtn2');
+  if(r1) r1.addEventListener('click', ()=>armReset(r1));
+  if(r2) r2.addEventListener('click', ()=>armReset(r2));
+  /* 저장된 기록이 있을 때만 타이틀에 안내를 띄운다 */
+  const n = coreCount(), rn = (typeof runeCount==='function') ? runeCount() : 0;
+  if(n>0 || rn>0 || STATE.sparks>0){
+    const row=$('#saveRow'); if(row) row.classList.add('on');
+    const info=$('#saveInfo');
+    if(info) info.textContent = '저장된 기록 — 코어 '+n+'/10 · 룬 '+rn+'/10 · 파편 '+STATE.sparks;
+    const sb=$('#startBtn'); if(sb) sb.textContent='이어서 하기';
+  }
+})();
+/* ══════════════ 소리 ══════════════ */
+function refreshSnd(){
+  const b=$('#sndBtn'); if(!b) return;
+  b.textContent = AUDIO.on ? '🔊' : '🔇';
+  b.classList.toggle('off', !AUDIO.on);
+  const r=$('#volRange'), l=$('#volLabel');
+  if(r) r.value = Math.round(AUDIO.vol*100);
+  if(l) l.textContent = AUDIO.on ? Math.round(AUDIO.vol*100)+'%' : '꺼짐';
+}
+$('#sndBtn').addEventListener('click', ()=>{ AUDIO.init(); AUDIO.toggle(); refreshSnd(); });
+$('#volRange').addEventListener('input', e=>{ AUDIO.init(); AUDIO.setVol(+e.target.value/100); refreshSnd(); });
+refreshSnd();
+
+/* 장면에 맞는 곡으로 — 사당 안은 조용하게, 오염지대는 어둡게 */
+let __moodT=0;
+function updateMood(dt){
+  if(!AUDIO.ready) return;
+  if(STATE.mode==='ending'){ AUDIO.setMood('ending'); return; }
+  if(STATE.mode==='shrine'){ AUDIO.setMood('shrine'); return; }
+  __moodT -= dt; if(__moodT>0) return; __moodT = 1.2;   /* 초당 한 번이면 충분 */
+  const r=Math.hypot(P.pos.x,P.pos.z);
+  if(typeof MON!=='undefined' && MON.pool && MON.pool.some(m=>m.alive &&
+      Math.hypot(m.g.position.x-P.pos.x, m.g.position.z-P.pos.z) < 34)) AUDIO.setMood('tense');
+  else if(r < 30) AUDIO.setMood('city');
+  else AUDIO.setMood('field');
+}
+
 $('#helpX').addEventListener('click',()=>$('#help').classList.remove('on'));
 $('#helpX2').addEventListener('click',()=>$('#help').classList.remove('on'));
 $('#help').addEventListener('click',e=>{ if(e.target.id==='help') $('#help').classList.remove('on'); });

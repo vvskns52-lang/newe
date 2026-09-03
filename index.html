@@ -40,6 +40,10 @@
     </div>
     <div id="loadbar"><i></i></div>
     <button class="btn gold" id="startBtn" style="font-size:18px;padding:14px 34px">모험 시작하기</button>
+    <div id="saveRow">
+      <span id="saveInfo"></span>
+      <button class="linkBtn" id="resetBtn">처음부터 새로 시작</button>
+    </div>
     <div style="color:#7f97ae;font-size:12px;margin-top:16px;font-family:var(--num)">
       중2 기술·가정 6단원 · 1~4차시 신재생에너지 학습용 3D RPG
     </div>
@@ -56,6 +60,7 @@
     <div id="hpHud"><span class="lb">체력</span></div>
   </div>
   <div id="sparkHud" class="panel"><span style="font-size:19px">✨</span><b id="sparkN">0</b><span style="font-size:12px;color:var(--muted);font-weight:700">에너지 파편</span></div>
+  <button id="sndBtn" class="panel" title="소리 켜기/끄기 (K)" aria-label="소리 켜기/끄기">🔊</button>
   <div id="runeHud" class="panel" style="display:none"><span style="font-size:19px">🔷</span><b id="runeN">0 / 10</b><span style="font-size:12px;color:var(--muted);font-weight:700">고대 룬</span></div>
   <div id="quest" class="panel">
     <span class="tag">현재 목표</span>
@@ -163,12 +168,23 @@
       </div>
       <div class="note" id="monLvDesc" style="margin-top:7px"></div>
     </div>
+    <div class="ctrl" style="margin-top:14px">
+      <label>🔊 소리 <span id="volLabel" style="font-family:var(--num);font-weight:800;font-size:14px;color:#c2691f">18%</span></label>
+      <input type="range" id="volRange" min="0" max="60" step="1" value="18">
+      <div class="note" style="margin-top:7px">0으로 내리면 꺼집니다. 화면 오른쪽 위 스피커 버튼이나 <b>K</b> 키로도 켜고 끌 수 있어요. 배경음악은 파일이 아니라 코드로 연주되므로 인터넷이 없어도 나옵니다.</div>
+    </div>
+    <div class="ctrl" style="margin-top:12px">
+      <label>🗑️ 진행 초기화 <span style="font-family:var(--body);font-weight:700;font-size:12px;color:var(--muted)">이 기기·이 브라우저에만 적용</span></label>
+      <button class="btn ghost" id="resetBtn2" style="width:100%">처음부터 새로 시작</button>
+      <div class="note" style="margin-top:7px">모은 코어·룬·파편과 정령 대화 기록이 모두 지워지고 화면이 새로 열립니다.</div>
+    </div>
   </div>
   <div class="helpFoot"><button class="btn" id="helpX">닫기</button></div>
 </div></div>
 
 <script src="js/vendor/three.min.js"></script>
 <script src="js/config.js"></script>
+<script src="js/audio.js"></script>
 <script src="js/art.js"></script>
 <script src="js/world.js"></script>
 <script src="js/actors.js"></script>

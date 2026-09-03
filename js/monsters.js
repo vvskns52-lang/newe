@@ -100,6 +100,7 @@ const lightCool  = ()=> Math.max(0.28, 0.52 - coreCount()*0.022);
 /* ── 발사 ── */
 let fireCD=0;
 function firePurify(){
+  AUDIO.sfx('light');
   if(fireCD>0 || STATE.mode!=='play' || !MON.ready) return;
   let best=null, bd=lightRange();
   for(const m of MON.pool){
@@ -258,6 +259,7 @@ function hitMonster(m){
   }
 }
 function hurtPlayer(m){
+  AUDIO.sfx('hurt');
   STATE.hp--; STATE.inv=1.8; refreshHud();
   const dx=P.pos.x-m.g.position.x, dz=P.pos.z-m.g.position.z, d=Math.hypot(dx,dz)||1;
   P.pos.x += dx/d*2.6; P.pos.z += dz/d*2.6; P.vy=4.2; P.onGround=false;
