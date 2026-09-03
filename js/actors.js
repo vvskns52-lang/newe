@@ -239,3 +239,41 @@ const sparks=[];
     scene.add(m); sparks.push({m, base:y+1.5, ph:rnd()*6.28, got:false});
   }
 })();
+
+/* ══════════════ 마지막 시련 — 에너지 관제 콘솔 ══════════════ */
+/* 코어 10개를 모으면 도시 광장 중앙 전력탑 앞에 나타난다. */
+const finalConsole = (function(){
+  const g=new THREE.Group(), C=ART.city;
+  const gy=hAt(FINAL.x,FINAL.z);
+  g.position.set(FINAL.x, gy, FINAL.z);
+  const base=new THREE.Mesh(new THREE.CylinderGeometry(2.3,2.7,0.5,8), matte(C.stone));
+  base.position.y=0.25; base.receiveShadow=true; g.add(base);
+  for(let i=0;i<2;i++){
+    const lg=new THREE.Mesh(new THREE.CylinderGeometry(0.2,0.26,1.6,6), matte(C.wood));
+    lg.position.set(-1.1+i*2.2,1.3,0); lg.castShadow=true; g.add(lg);
+  }
+  const desk=new THREE.Mesh(new THREE.BoxGeometry(3.6,0.34,1.7), matte(C.stone));
+  desk.position.y=2.2; desk.castShadow=true; g.add(desk);
+  const board=new THREE.Mesh(new THREE.PlaneGeometry(3.3,2.0),
+    new THREE.MeshBasicMaterial({color:0x16283f,transparent:true,opacity:0.78,side:THREE.DoubleSide}));
+  board.position.set(0,3.4,-0.34); board.rotation.x=-0.24; g.add(board);
+  const scr=new THREE.Mesh(new THREE.PlaneGeometry(3.2,1.9),
+    new THREE.MeshBasicMaterial({color:0xffd166,transparent:true,opacity:0.34,side:THREE.DoubleSide}));
+  scr.position.set(0,3.4,-0.25); scr.rotation.x=-0.24; g.add(scr);
+  const frame=new THREE.Mesh(new THREE.TorusGeometry(1.95,0.07,6,26), new THREE.MeshBasicMaterial({color:0xffe08a}));
+  frame.position.set(0,3.4,-0.3); frame.rotation.x=-0.24; g.add(frame);
+  const bars=[];
+  for(let i=0;i<12;i++){
+    const b=new THREE.Mesh(new THREE.BoxGeometry(0.16,1,0.07),
+      new THREE.MeshBasicMaterial({color:[0xf6b93b,0x5ad3c4,0x5b9df9,0x8dc63f,0x4fd0e0,0xef7a5a][i%6]}));
+    b.position.set(-1.35+i*0.245, 3.1, -0.16); g.add(b); bars.push(b);
+  }
+  const lb=makeLabel(FINAL.name,'마지막 시련 · 에너지 믹스','#ffd166');
+  lb.position.y=5.8; g.add(lb);
+  /* 조명은 처음부터 씬에 두고 밝기만 0으로 둔다 — 도중에 조명 개수가 바뀌면
+     셰이더가 다시 컴파일되면서 화면이 한 번 끊기기 때문. */
+  const pl=new THREE.PointLight(0xffd166,0,24);
+  pl.position.set(FINAL.x, gy+3.5, FINAL.z); scene.add(pl);
+  g.visible=false; scene.add(g);
+  return {g, scr, frame, bars, light:pl, label:lb, gy};
+})();

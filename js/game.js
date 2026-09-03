@@ -3,14 +3,14 @@
    ═══════════════════════════════════════════════════ */
 /* ══════════════ 게임 상태 ══════════════ */
 const STATE = {
-  cores:{}, sparks:0, hintUsed:{}, talked:{}, started:false, hp:3, inv:0, heal:0, monLevel:1,
+  cores:{}, sparks:0, hintUsed:{}, talked:{}, started:false, hp:3, inv:0, heal:0, monLevel:1, finalDone:false,
   mode:'play',   // play | dialog | shrine | ending
   quest:{t:'빛의 도시로', b:'도시 광장의 시장 하람에게 말을 걸어 무슨 일이 벌어졌는지 들어보자.'}
 };
 try{ const sv=JSON.parse(localStorage.getItem('energyChronicle')||'null');
-     if(sv){ STATE.cores=sv.cores||{}; STATE.sparks=sv.sparks||0; STATE.talked=sv.talked||{};
+     if(sv){ STATE.cores=sv.cores||{}; STATE.sparks=sv.sparks||0; STATE.talked=sv.talked||{}; STATE.finalDone=!!sv.finalDone;
        if(sv.monLevel!==undefined) STATE.monLevel=sv.monLevel; } }catch(e){}
-function save(){ try{ localStorage.setItem('energyChronicle', JSON.stringify({cores:STATE.cores,sparks:STATE.sparks,talked:STATE.talked,monLevel:STATE.monLevel})); }catch(e){} }
+function save(){ try{ localStorage.setItem('energyChronicle', JSON.stringify({cores:STATE.cores,sparks:STATE.sparks,talked:STATE.talked,monLevel:STATE.monLevel,finalDone:STATE.finalDone})); }catch(e){} }
 const coreCount = ()=>Object.keys(STATE.cores).length;
 
 /* ══════════════ HUD ══════════════ */
@@ -186,11 +186,16 @@ function findNear(){
     const d=Math.hypot(p.x-n.data.x, p.z-n.data.z);
     if(d<6 && d<bd){ bd=d; best={type:'npc', n, d}; }
   }
+  if(coreCount()>=10){                       // 마지막 시련 — 에너지 관제탑
+    const d=Math.hypot(p.x-FINAL.x, p.z-FINAL.z);
+    if(d<8 && d<bd){ bd=d; best={type:'final', d}; }
+  }
   return best;
 }
 function interact(){
   if(!nearTarget) return;
   if(nearTarget.type==='npc') startDialog(nearTarget.n.data);
+  else if(nearTarget.type==='final') openShrine(FINAL);
   else openShrine(nearTarget.s);
 }
 
@@ -225,6 +230,12 @@ function drawMinimap(){
     mg.fillStyle = got ? '#ffffff' : '#'+new THREE.Color(s.col).getHexString();
     mg.fill(); mg.lineWidth=2.4; mg.strokeStyle= got? '#7bd67b':'#1b2b3d'; mg.stroke();
   });
+  // 에너지 관제탑 (코어 10개 이후)
+  if(coreCount()>=10){
+    mg.beginPath(); mg.arc(FINAL.x*S, FINAL.z*S, 8, 0, 6.283);
+    mg.fillStyle = STATE.finalDone? '#ffffff' : '#ffd166';
+    mg.fill(); mg.lineWidth=2.6; mg.strokeStyle= STATE.finalDone? '#7bd67b':'#1b2b3d'; mg.stroke();
+  }
   // NPC
   npcObjs.forEach(n=>{ mg.beginPath(); mg.arc(n.data.x*S,n.data.z*S,3.4,0,6.283); mg.fillStyle='#ffe08a'; mg.fill(); });
   // 플레이어
@@ -335,8 +346,9 @@ function animate(){
       const pr=$('#prompt');
       if(nearTarget){
         pr.classList.add('on');
-        pr.querySelector('.txt').textContent = nearTarget.type==='npc'
-          ? nearTarget.n.data.name+'와(과) 대화하기'
+        pr.querySelector('.txt').textContent =
+            nearTarget.type==='npc'   ? nearTarget.n.data.name+'와(과) 대화하기'
+          : nearTarget.type==='final' ? (STATE.finalDone ? '에너지 관제탑 — 다시 설계해 보기' : '에너지 관제탑 — 하루 전력 설계 시작')
           : (STATE.cores[nearTarget.s.id] ? nearTarget.s.name+' 다시 들어가기 (클리어)' : nearTarget.s.name+' 시련 시작');
       } else pr.classList.remove('on');
     }
@@ -389,6 +401,22 @@ function animate(){
       shrineLight.intensity = (got?2.0:1.5) * (1-nd/42) * (0.85+Math.sin(t*2.4)*0.15) * 1.9;
     } else shrineLight.intensity=0;
   }
+  /* 에너지 관제 콘솔 */
+  {
+    const open = coreCount()>=10;
+    finalConsole.g.visible = open;
+    if(!open){ finalConsole.light.intensity = 0; }
+    else {
+      finalConsole.frame.rotation.z += dt*0.6;
+      finalConsole.label.material.opacity = clamp(1.6-Math.hypot(P.pos.x-FINAL.x,P.pos.z-FINAL.z)/60, 0.2, 1);
+      finalConsole.bars.forEach((b,i)=>{
+        const v = 0.35 + 0.65*Math.abs(Math.sin(t*0.9 + i*0.42));
+        b.scale.y = v; b.position.y = 3.1 - (1-v)*0.5;
+      });
+      finalConsole.light.intensity = STATE.finalDone? 1.4 : (1.0+Math.sin(t*2.6)*0.45);
+      finalConsole.scr.material.opacity = STATE.finalDone? 0.42 : (0.30+Math.sin(t*2.6)*0.1);
+    }
+  }
   /* NPC 마커 */
   npcObjs.forEach(n=>{
     n.mark.rotation.y+=dt*2; n.mark.position.y=3.7+Math.sin(t*2.4)*0.16;
@@ -425,7 +453,9 @@ $('#startBtn').addEventListener('click', ()=>{
   STATE.started=true; STATE.mode='play';
   refreshHud(); updateCityLight();
   if(coreCount()>0){ toast('💾','이전 진행 상황을 불러왔습니다 (코어 '+coreCount()+'개)',3000);
-    setQuest('열 개의 사당을 깨워라','남은 사당에서 시련을 풀고 코어를 모으자.'); }
+    if(STATE.finalDone) setQuest('모든 임무 완료','열 개의 사당과 에너지 믹스 설계까지 끝냈다. 사당·관제탑에 다시 들어가 복습해 보자.');
+    else if(coreCount()>=10) setQuest('마지막 임무 — 에너지 관제탑','도시 광장 중앙의 <b>에너지 관제탑</b>으로 가서 하루 24시간 전력 계획을 직접 설계하자.');
+    else setQuest('열 개의 사당을 깨워라','남은 사당에서 시련을 풀고 코어를 모으자.'); }
   else toast('🎒','시장 하람에게 먼저 말을 걸어보자',3200);
 });
 $$('#monLv .chip').forEach((c,i)=>c.addEventListener('click',()=>setMonLevel(i)));

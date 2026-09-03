@@ -812,3 +812,171 @@ PUZZLES.fc=api=>{
     TX(g,'5kW 유지 '+st.hold.toFixed(1)+' / 6.0초',30,524,15, P>=5?'#7ae0a8':'rgba(255,255,255,.5)');
   }};
 };
+
+/* ═══════════════════════════════════════════════════════════
+   🏙️ 마지막 시련 — 에너지 믹스 설계 (코어 10개를 모아야 열림)
+   도시의 하루 24시간 전력 수요를 열 가지 에너지로 나누어 채운다.
+   ═══════════════════════════════════════════════════════════ */
+const MIXSRC=[
+ {id:'pv',  cap:20, cost:6,  co2:0, why:'낮에만 · 정오 최대',       p:h=>(h>=6&&h<=18)?Math.max(0,Math.sin(Math.PI*(h-6)/12)):0},
+ {id:'st',  cap:14, cost:7,  co2:0, why:'낮 + 축열로 초저녁까지',    p:h=>(h>=7&&h<=19)?Math.max(0,Math.sin(Math.PI*(h-7)/12))*0.95:((h>19&&h<=22)?0.5:0)},
+ {id:'wind',cap:18, cost:7,  co2:0, why:'하루 종일 · 밤에 조금 더', p:h=>0.5+0.3*Math.cos(Math.PI*h/12)},
+ {id:'hyd', cap:16, cost:9,  co2:0, why:'저녁 피크에 집중 방류',     p:h=>(h>=17&&h<=21)?1:0.45},
+ {id:'geo', cap:13, cost:11, co2:0, why:'24시간 일정 · 기저부하',    p:h=>0.9},
+ {id:'oce', cap:14, cost:10, co2:0, why:'조석 · 하루 네 번 피크',    p:h=>0.18+0.8*Math.abs(Math.sin(Math.PI*(h+1)/6.2))},
+ {id:'bio', cap:12, cost:6,  co2:4, why:'24시간 · CO₂ 조금',        p:h=>0.85},
+ {id:'wst', cap:12, cost:5,  co2:7, why:'가장 싸지만 CO₂ 많음',      p:h=>0.9},
+ {id:'h2',  cap:16, cost:10, co2:0, why:'저장했다 저녁에 방전',      p:h=>(h>=17&&h<=23)?0.95:0.12},
+ {id:'fc',  cap:12, cost:8,  co2:2, why:'24시간 · 도심 건물용',      p:h=>0.85},
+];
+/* 도시의 하루 전력 수요 (0시~23시) */
+const MIXDEM=[46,42,40,39,40,44,54,66,74,76,75,74,73,72,72,74,80,88,96,98,92,80,66,54];
+const MIX_BUD=100, MIX_CO2=18, MIX_SHARE=0.32, MIX_MAX=3;
+
+PUZ_HINT.mix='한 가지에 몰아주면 절대 풀리지 않습니다. <b>열 가지를 하나씩 골고루</b> 세우고, 모자라면 <b>바이오를 하나 더</b> 지어 보세요. '+
+  '(예시: 태양광1 · 태양열1 · 풍력1 · 수력1 · 지열1 · 해양1 · <b>바이오2</b> · 폐기물1 · 수소1 · 연료전지1 → 비용 85억, CO₂ 17톤, 최대 비중 21%)';
+
+PUZZLES.mix=api=>{
+  api.mission('하루 24시간, 도시의 불이 한 번도 꺼지지 않는 전력 계획을 세워라.',
+    ['낮(10~15시)의 수요를 채우기',
+     '밤·새벽(22~05시)도 채우기 — 태양광은 밤에 <b>0</b>이 된다',
+     '24시간 전부 채우고 <b>설비 비용 100억</b> 이내로',
+     '한 에너지원 비중 <b>32% 이하</b> · CO₂ <b>18톤 이하</b> — 골고루 섞기']);
+
+  const st={n:new Array(MIXSRC.length).fill(0)};
+  const ctrl=$('#shCtrl');
+  const box=document.createElement('div'); box.className='ctrl';
+  box.innerHTML='<label>⚡ 발전소 건설 <span id="mixTot">0기</span></label>';
+  const list=document.createElement('div'); list.className='mixList'; box.appendChild(list);
+  ctrl.appendChild(box);
+  const rows=MIXSRC.map((s,i)=>{
+    const sh=SH[s.id];
+    const r=document.createElement('div'); r.className='mixRow';
+    r.style.setProperty('--c','#'+new THREE.Color(sh.col).getHexString());
+    r.innerHTML='<span class="ic">'+sh.icon+'</span>'+
+      '<span class="nm">'+sh.short+'<small>'+s.why+' · '+s.cost+'억</small></span>'+
+      '<button class="mn" aria-label="줄이기">−</button><span class="n">0</span><button class="pl" aria-label="늘리기">＋</button>';
+    const nEl=r.querySelector('.n');
+    const set=v=>{ st.n[i]=clamp(v,0,MIX_MAX); nEl.textContent=st.n[i];
+      r.classList.toggle('on', st.n[i]>0);
+      const tt=$('#mixTot'); if(tt) tt.textContent=st.n.reduce((a,b)=>a+b,0)+'기'; };
+    r.querySelector('.mn').onclick=()=>set(st.n[i]-1);
+    r.querySelector('.pl').onclick=()=>set(st.n[i]+1);
+    list.appendChild(r); return {set};
+  });
+  const rs=document.createElement('button');
+  rs.className='btn ghost'; rs.style.width='100%'; rs.style.fontSize='13px';
+  rs.textContent='↺ 처음부터 다시 배치';
+  rs.onclick=()=>rows.forEach(o=>o.set(0));
+  ctrl.appendChild(rs);
+  const upd=api.stats([{k:'부족 시간',v:'24 h'},{k:'비용',v:'0 / '+MIX_BUD},{k:'CO₂',v:'0 / '+MIX_CO2},{k:'최대 비중',v:'—'}]);
+  api.note('발전소 1기의 <b>설비용량</b>은 종류마다 다르고, 실제 발전량은 시간대별 조건(햇빛·바람·조석·수요)에 따라 달라집니다. '+
+           '오른쪽 그래프의 <b>흰 점선이 수요</b>, <b>색이 채워진 부분이 공급</b>입니다.');
+
+  const L=76,R=928,T=106,B=400, YMAX=145;
+  const X=h=>L+h/23*(R-L), Y=v=>B-clamp(v,0,YMAX)/YMAX*(B-T);
+
+  return {draw(g,t,dt){
+    /* ── 계산 ── */
+    const per=new Array(MIXSRC.length).fill(0), sup=new Array(24).fill(0);
+    let cost=0, co2=0, tot=0, units=0;
+    MIXSRC.forEach((s,i)=>{ const c=st.n[i]; if(!c) return;
+      cost+=s.cost*c; co2+=s.co2*c; units+=c;
+      for(let h=0;h<24;h++){ const v=s.cap*c*s.p(h); sup[h]+=v; per[i]+=v; tot+=v; } });
+    let short=0, minR=9;
+    for(let h=0;h<24;h++){ const r=sup[h]/MIXDEM[h]; if(r<minR) minR=r; if(sup[h]<MIXDEM[h]-0.01) short++; }
+    const share = tot>0 ? Math.max.apply(null,per)/tot : 0;
+    const dayOK   = [10,11,12,13,14,15].every(h=>sup[h]>=MIXDEM[h]);
+    const nightOK = [22,23,0,1,2,3,4,5].every(h=>sup[h]>=MIXDEM[h]);
+    if(dayOK) api.step(0);
+    if(dayOK&&nightOK) api.step(1);
+    if(short===0&&cost<=MIX_BUD) api.step(2);
+    if(short===0&&cost<=MIX_BUD&&co2<=MIX_CO2&&share<=MIX_SHARE) api.step(3);
+    upd([short+' h', cost+' / '+MIX_BUD, co2+' / '+MIX_CO2, tot>0?Math.round(share*100)+' %':'—']);
+
+    /* ── 배경 ── */
+    bgGrid(g,'#16283f','#0b1524');
+    TX(g,'🏙️ 빛의 도시 — 하루 24시간 전력 수요와 공급',L,44,20,'#dce8f5');
+    TX(g,'흰 점선 = 도시가 필요한 전력 · 색칠된 부분 = 우리가 만든 전력',L,66,13,'#8fa9c2');
+
+    /* ── 부족 구간 표시 ── */
+    for(let h=0;h<24;h++){
+      if(sup[h]>=MIXDEM[h]-0.01) continue;
+      const w=(R-L)/23;
+      g.fillStyle='rgba(255,90,90,.16)'; g.fillRect(X(h)-w/2, T-8, w, B-T+8);
+    }
+    /* ── 격자 ── */
+    g.strokeStyle='rgba(255,255,255,.09)'; g.lineWidth=1;
+    for(let v=0;v<=YMAX;v+=25){ g.beginPath(); g.moveTo(L,Y(v)); g.lineTo(R,Y(v)); g.stroke();
+      TX(g,v+'',L-10,Y(v)+5,12,'rgba(255,255,255,.42)','right'); }
+    TX(g,'MW',L-10,Y(YMAX)-10,12,'rgba(255,255,255,.42)','right');
+
+    /* ── 공급 누적 영역 ── */
+    const cum=new Array(24).fill(0);
+    MIXSRC.forEach((s,i)=>{
+      const c=st.n[i]; if(!c) return;
+      const col=new THREE.Color(SH[s.id].col);
+      g.beginPath();
+      for(let h=0;h<24;h++){ const y=Y(cum[h]+s.cap*c*s.p(h)); h?g.lineTo(X(h),y):g.moveTo(X(h),y); }
+      for(let h=23;h>=0;h--) g.lineTo(X(h),Y(cum[h]));
+      g.closePath();
+      g.fillStyle='rgba('+Math.round(col.r*255)+','+Math.round(col.g*255)+','+Math.round(col.b*255)+',.80)';
+      g.fill();
+      g.strokeStyle='rgba(255,255,255,.20)'; g.lineWidth=1; g.stroke();
+      for(let h=0;h<24;h++) cum[h]+=s.cap*c*s.p(h);
+    });
+
+    /* ── 수요 곡선 ── */
+    g.setLineDash([8,6]); g.strokeStyle='#ffffff'; g.lineWidth=3.4; g.beginPath();
+    for(let h=0;h<24;h++){ const y=Y(MIXDEM[h]); h?g.lineTo(X(h),y):g.moveTo(X(h),y); }
+    g.stroke(); g.setLineDash([]);
+    TX(g,'도시 수요',X(19)+8,Y(MIXDEM[19])-12,14,'#ffffff');
+
+    /* ── 시간축 ── */
+    g.strokeStyle='rgba(255,255,255,.25)'; g.lineWidth=2;
+    g.beginPath(); g.moveTo(L,B); g.lineTo(R,B); g.stroke();
+    for(let h=0;h<24;h+=3) TX(g,h+'시',X(h),B+20,12,'rgba(255,255,255,.5)','center');
+    TX(g,'🌙 새벽',X(2),T-14,13,'#8fa9c2','center');
+    TX(g,'☀️ 한낮',X(12),T-14,13,'#ffd764','center');
+    TX(g,'🏠 저녁 피크',X(19),T-14,13,'#ff9f6b','center');
+
+    /* ── 현재 시각 스캔 ── */
+    const ch=(t*2.4)%24, hi=Math.round(ch)%24, cx=X(ch);
+    g.strokeStyle='rgba(255,255,255,.55)'; g.lineWidth=2;
+    g.beginPath(); g.moveTo(cx,T-8); g.lineTo(cx,B); g.stroke();
+    const ok=sup[hi]>=MIXDEM[hi]-0.01;
+    const bw=196, bx=clamp(cx-bw/2,L,R-bw);
+    rr(g,bx,T-4,bw,54,12); g.fillStyle='rgba(10,20,34,.88)'; g.fill();
+    g.strokeStyle=ok?'#7ae0a8':'#ff7a7a'; g.lineWidth=2; g.stroke();
+    TX(g,(hi<10?'0'+hi:hi)+':00',bx+12,T+18,14,'#9fb6cd');
+    NUM(g,'수요 '+MIXDEM[hi],bx+12,T+40,17,'#ffffff');
+    NUM(g,'공급 '+Math.round(sup[hi]),bx+120,T+40,17, ok?'#7ae0a8':'#ff7a7a');
+
+    /* ── 범례 ── */
+    let lx=L;
+    MIXSRC.forEach((s2,i)=>{
+      if(!st.n[i]) return;
+      const sh=SH[s2.id], col=new THREE.Color(sh.col);
+      g.fillStyle='#'+col.getHexString(); rr(g,lx,436,11,11,3); g.fill();
+      TX(g,sh.short+' ×'+st.n[i],lx+16,446,12,'#c8d8e8');
+      g.font='800 12px "Gothic A1", sans-serif';
+      lx += 16+g.measureText(sh.short+' ×'+st.n[i]).width+18;
+    });
+    if(lx===L) TX(g,'아직 세운 발전소가 없습니다.',L,446,12,'rgba(255,255,255,.35)');
+
+    /* ── 게이지 3종 ── */
+    gauge(g,L,476,232,14, cost/MIX_BUD, cost<=MIX_BUD?'#79c8f2':'#ff7a7a','💰 설비 비용 (억원)', cost+' / '+MIX_BUD);
+    gauge(g,L+266,476,232,14, co2/MIX_CO2, co2<=MIX_CO2?'#7ae0a8':'#ff7a7a','🌫️ CO₂ (톤/일)', co2+' / '+MIX_CO2);
+    gauge(g,L+532,476,232,14, share/MIX_SHARE, share<=MIX_SHARE?'#f4c04f':'#ff7a7a','⚖️ 최대 비중', (tot>0?Math.round(share*100):0)+' / 32 %');
+
+    /* ── 상태 메시지 ── */
+    let msg, col2;
+    if(units===0){ msg='왼쪽에서 발전소를 하나씩 세워 보자. 한 종류만으로는 절대 하루를 채울 수 없다.'; col2='#9fb6cd'; }
+    else if(short>0){ msg='⚠ 하루 중 '+short+'시간 동안 전기가 모자란다. (빨간 구간)'; col2='#ff9f9f'; }
+    else if(cost>MIX_BUD){ msg='⚠ 24시간은 채웠지만 예산을 '+(cost-MIX_BUD)+'억 초과했다.'; col2='#ff9f9f'; }
+    else if(co2>MIX_CO2){ msg='⚠ CO₂가 '+(co2-MIX_CO2)+'톤 초과. 폐기물·바이오를 줄이고 재생에너지를 늘려 보자.'; col2='#ff9f9f'; }
+    else if(share>MIX_SHARE){ msg='⚠ 한 에너지원에 '+Math.round(share*100)+'%나 의존하고 있다. 더 골고루 섞자.'; col2='#ffd764'; }
+    else { msg='✓ 24시간 완벽 공급 · 예산과 CO₂ 이내 · 골고루 섞인 에너지 믹스 완성!'; col2='#7ae0a8'; }
+    TX(g,msg,L,524,15,col2);
+  }};
+};

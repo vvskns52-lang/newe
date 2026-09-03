@@ -81,6 +81,23 @@ function makeApi(s){
   return api;
 }
 
+/* 정답을 맞히면 사당 창을 맨 위(무대·클리어 화면)로 부드럽게 올린다.
+   태블릿처럼 화면이 좁아 문제가 아래에 놓일 때 꼭 필요하다. */
+function scrollShrineTop(){
+  const list=[$('#shrineBox'), $('#shrine')];
+  /* 레이아웃이 달라져 다른 요소가 스크롤을 맡고 있어도 찾아낸다 */
+  let el=document.querySelector('.stagePane');
+  while(el && el!==document.body){
+    if(el.scrollHeight-el.clientHeight>8 && list.indexOf(el)<0) list.push(el);
+    el=el.parentElement;
+  }
+  list.forEach(e=>{
+    if(!e) return;
+    try{ e.scrollTo({top:0, behavior:'smooth'}); }catch(err){ e.scrollTop=0; }
+    setTimeout(()=>{ e.scrollTop=0; }, 900);   // smooth 스크롤을 지원하지 않는 브라우저 대비
+  });
+}
+
 /* 확인 문제 */
 function showQuiz(api){
   const q=QUIZ[api.s.id], ctrl=$('#shCtrl');
@@ -92,7 +109,12 @@ function showQuiz(api){
     const b=document.createElement('button'); b.className='opt'; b.textContent=(i+1)+'. '+q.o[i];
     b.onclick=()=>{
       if(d.dataset.done) return;
-      if(i===q.a){ b.classList.add('ok'); d.dataset.done='1'; ex.style.display='block'; setTimeout(()=>clearShrine(api.s),900); }
+      if(i===q.a){
+        b.classList.add('ok'); d.dataset.done='1'; ex.style.display='block';
+        btns.forEach(o=>{ if(o!==b) o.disabled=true; });
+        setTimeout(scrollShrineTop, 260);            // 정답 → 화면을 위로
+        setTimeout(()=>clearShrine(api.s), 1100);
+      }
       else { b.classList.add('no'); ex.style.display='block'; }
     };
     d.appendChild(b); return b;
@@ -103,17 +125,34 @@ function showQuiz(api){
 
 /* 클리어 */
 function clearShrine(s){
+  if(s.final) return clearFinal(s);
   const first = !STATE.cores[s.id];
   STATE.cores[s.id]=true; STATE.hp=3; STATE.inv=2; save(); refreshHud(); updateCityLight();
   $('#clearIcon').textContent='💠';
   $('#clearTitle').textContent = first ? s.short+' 에너지 코어 획득!' : '시련을 다시 완수했다';
   $('#clearText').innerHTML = s.note + '<br><br><b style="color:#ffe08a">도시 전력 '+(coreCount()*10)+'%</b>' + (first?' &nbsp;·&nbsp; <b style="color:#8ef0a8">이 지역의 오염이 걷혔다</b>':'');
   $('#shClear').classList.add('on');
-  $('#shrineBox').scrollTo({top:0,behavior:'smooth'});
-  if(coreCount()>=10) $('#clearBtn').textContent='빛의 도시로 돌아가기 ▶';
+  scrollShrineTop();
+  $('#clearBtn').textContent = coreCount()>=10 ? '빛의 도시로 돌아가기 ▶' : '코어를 가지고 나가기';
+}
+
+/* 마지막 시련 — 에너지 믹스 설계 완료 */
+function clearFinal(s){
+  const first = !STATE.finalDone;
+  STATE.finalDone = true; STATE.hp=3; STATE.inv=2; save(); refreshHud();
+  $('#clearIcon').textContent='🌇';
+  $('#clearTitle').textContent = first ? '에너지 믹스 설계 완료!' : '다시 한 번 설계를 완성했다';
+  $('#clearText').innerHTML =
+    '하루 24시간, 단 한 시간도 불이 꺼지지 않는 전력 계획이 완성되었다.<br><br>'+
+    '<b style="color:#ffe08a">서로 다른 에너지가 약점을 메워 주도록 알맞게 섞는 것 — 그것이 에너지 믹스다.</b>';
+  $('#shClear').classList.add('on');
+  scrollShrineTop();
+  $('#clearBtn').textContent='도시에 계획을 전하기 ▶';
 }
 $('#clearBtn').onclick=()=>{
+  const wasFinal = !!(curShrine && curShrine.final);
   closeShrine();
+  if(wasFinal){ setTimeout(showFinalEnding,600); return; }
   if(coreCount()>=10) setTimeout(showEnding,600);
   else { const left=10-coreCount();
     setQuest('열 개의 사당을 깨워라','남은 사당 <b>'+left+'곳</b>을 찾아 코어를 모으자.');
@@ -156,8 +195,12 @@ function closeShrine(){
 }
 
 /* 엔딩 */
+let endingKind='core';
 function showEnding(){
-  STATE.mode='ending';
+  STATE.mode='ending'; endingKind='core';
+  $('#endEmoji').textContent='🌇';
+  $('#endTitle').innerHTML='빛의 도시가 <em>다시 켜졌다</em>';
+  $('#endBtn').textContent='마지막 임무를 받으러 가기 ▶';
   $('#endText').innerHTML='열 개의 사당이 모두 깨어났다. 태양의 빛과 열, 바람과 물, 땅속의 열, 밀물과 썰물, '+
     '들판의 작물과 버려진 쓰레기, 그리고 물에서 태어난 수소까지 —<br>'+
     '<b>어느 하나도 혼자서는 도시를 밝히지 못했다.</b><br>서로 다른 열 가지 에너지를 알맞게 섞었을 때, 비로소 도시의 밤이 끝났다.';
@@ -165,5 +208,32 @@ function showEnding(){
     + '<span style="background:#7ae0a8">✨ 파편 '+STATE.sparks+'개</span>';
   $('#ending').classList.add('on');
 }
+
+/* 마지막 시련까지 끝낸 진짜 엔딩 */
+function showFinalEnding(){
+  STATE.mode='ending'; endingKind='final';
+  $('#endEmoji').textContent='🌈';
+  $('#endTitle').innerHTML='도시의 하루가 <em>완성되었다</em>';
+  $('#endText').innerHTML=
+    '한밤중에는 땅속의 열과 바이오·연료전지가 도시를 지키고, 새벽 바람이 그 뒤를 받쳤다. '+
+    '해가 뜨면 태양광과 태양열이 이어받고, 저녁 여섯 시 가장 전기가 많이 필요한 시간에는 '+
+    '댐의 물과 저장해 둔 수소가 한꺼번에 쏟아져 나왔다.<br>'+
+    '<b>어느 하나도 혼자서는 하루를 지킬 수 없었지만, 열 가지가 함께라면 단 한 시간도 불이 꺼지지 않는다.</b><br>'+
+    '이것이 우리가 찾던 <b>에너지 믹스</b>다.';
+  $('#endSum').innerHTML = SHRINES.map(s=>'<span>'+s.icon+' '+s.short+'</span>').join('')
+    + '<span style="background:#ffd166">🏙️ 에너지 믹스 설계 완료</span>'
+    + '<span style="background:#7ae0a8">✨ 파편 '+STATE.sparks+'개</span>';
+  $('#endBtn').textContent='섬으로 돌아가기';
+  $('#ending').classList.add('on');
+}
 $('#endBtn').onclick=()=>{ $('#ending').classList.remove('on'); STATE.mode='play';
-  setQuest('에너지 믹스 완성','모든 사당을 깨웠다. 자유롭게 섬을 둘러보거나 사당에 다시 들어가 원리를 복습해 보자.'); };
+  if(endingKind==='core'){
+    setQuest('마지막 임무 — 에너지 관제탑',
+      '도시 광장 중앙 전력탑 앞에 <b>에너지 관제 콘솔</b>이 나타났다. 그곳에서 도시의 하루 24시간 전기를 '+
+      '열 가지 에너지로 어떻게 나누어 만들지 <b>에너지 믹스</b>를 직접 설계하자.');
+    toast('📜','새 목표: 도시 중앙 에너지 관제탑으로!',4200);
+  } else {
+    setQuest('모든 임무 완료',
+      '열 개의 사당과 에너지 믹스 설계까지 모두 끝냈다. 자유롭게 섬을 둘러보거나 사당·관제탑에 다시 들어가 복습해 보자.');
+  }
+};
