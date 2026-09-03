@@ -40,6 +40,9 @@ function makeApi(s){
     const holder=d.querySelector('.steps');
     steps.forEach((t,i)=>{ const e=document.createElement('div'); e.className='step';
       e.innerHTML='<i>'+(i+1)+'</i><span>'+t+'</span>'; holder.appendChild(e); api.stepEls.push(e); });
+    const tip=document.createElement('div'); tip.className='holdTip';
+    tip.innerHTML='⏱ 조건을 <b>잠깐 유지</b>해야 단계가 완료됩니다. 값을 스쳐 지나가는 것만으로는 통과되지 않아요.';
+    d.appendChild(tip);
     ctrl.appendChild(d); api.nSteps=steps.length;
   };
   api.step=i=>{
@@ -50,6 +53,26 @@ function makeApi(s){
     if(api.doneSteps.size>=api.nSteps){ api.locked=true; setTimeout(()=>showQuiz(api),650); }
   };
   api.has=i=>api.doneSteps.has(i);
+
+  /* 조건을 sec초 동안 "계속" 유지해야 단계가 완료된다.
+     슬라이더를 끝에서 끝까지 훑기만 해도 켜지던 문제를 막는 장치.
+     draw() 안에서 매 프레임 호출한다 → api.hold(단계, 조건, dt, 초) */
+  api.holdT = {};
+  api.hold = (i, ok, dt, sec)=>{
+    if(api.doneSteps.has(i) || api.locked) return 1;
+    sec = sec || 2.0;
+    const cur = clamp((api.holdT[i]||0) + (ok ? dt : -dt*1.8), 0, sec);
+    api.holdT[i] = cur;
+    const e = api.stepEls[i];
+    if(e){
+      e.style.setProperty('--p', (cur/sec).toFixed(3));
+      e.style.setProperty('--po', cur>0.02 ? 1 : 0);
+      e.querySelector('i').classList.toggle('hold', cur>0.02);
+    }
+    if(cur >= sec){ api.step(i); return 1; }
+    return cur/sec;
+  };
+
   api.slider=(label,min,max,step,val,fmt,fn)=>{
     const d=document.createElement('div'); d.className='ctrl';
     d.innerHTML='<label>'+label+'<span></span></label>';
@@ -98,28 +121,48 @@ function scrollShrineTop(){
   });
 }
 
-/* 확인 문제 */
+/* 확인 문제 — 사당의 정령이 "물어보는" 대화 형식 */
 function showQuiz(api){
   const q=QUIZ[api.s.id], ctrl=$('#shCtrl');
-  const d=document.createElement('div'); d.className='quizBox';
-  d.innerHTML='<div class="q">✅ 마지막 관문 — '+q.q+'</div>';
+  const A=QUIZ_ASK[api.s.id] || {who:'사당의 정령', face:api.s.icon, lead:'마지막으로 하나만 물어봐도 될까?', wrong:'다시 한 번 생각해 보렴.', right:'그래, 바로 그거야.'};
+
+  const d=document.createElement('div'); d.className='quizBox askBox';
+  d.innerHTML =
+    '<div class="askWho"><span class="face">'+A.face+'</span><b>'+A.who+'</b><i>이(가) 말을 건다</i></div>'+
+    '<div class="askLead">'+A.lead+'</div>'+
+    '<div class="q askQ">'+q.q+'</div>'+
+    '<div class="askYou">나의 대답</div>';
+
+  const react=document.createElement('div'); react.className='askReact'; react.style.display='none';
   const ex=document.createElement('div'); ex.className='explain'; ex.style.display='none'; ex.innerHTML=q.e;
-  const order=[0,1,2,3];
-  const btns=order.map(i=>{
-    const b=document.createElement('button'); b.className='opt'; b.textContent=(i+1)+'. '+q.o[i];
+
+  let tries=0;
+  const btns=[0,1,2,3].map(i=>{
+    const b=document.createElement('button'); b.className='opt'; b.textContent='“'+q.o[i]+'”';
     b.onclick=()=>{
       if(d.dataset.done) return;
       if(i===q.a){
-        b.classList.add('ok'); d.dataset.done='1'; ex.style.display='block';
+        b.classList.add('ok'); d.dataset.done='1';
         btns.forEach(o=>{ if(o!==b) o.disabled=true; });
-        setTimeout(scrollShrineTop, 260);            // 정답 → 화면을 위로
-        setTimeout(()=>clearShrine(api.s), 1100);
+        react.className='askReact ok'; react.style.display='block';
+        react.innerHTML='<span class="face">'+A.face+'</span><span>'+A.right+'</span>';
+        ex.style.display='block';
+        setTimeout(scrollShrineTop, 320);            /* 정답 → 화면을 위로 */
+        setTimeout(()=>clearShrine(api.s), 1300);
+      } else {
+        tries++;
+        b.classList.add('no'); b.disabled=true;
+        react.className='askReact no'; react.style.display='block';
+        react.innerHTML='<span class="face">'+A.face+'</span><span>'+A.wrong+'</span>';
+        /* 두 번 틀리면 배움 노트를 다시 펼쳐 준다 (답은 알려주지 않는다) */
+        if(tries>=2){
+          react.innerHTML += '<div class="askNote">📘 '+api.s.note+'</div>';
+        }
       }
-      else { b.classList.add('no'); ex.style.display='block'; }
     };
     d.appendChild(b); return b;
   });
-  d.appendChild(ex); ctrl.appendChild(d);
+  d.appendChild(react); d.appendChild(ex); ctrl.appendChild(d);
   d.scrollIntoView({behavior:'smooth', block:'center'});
 }
 

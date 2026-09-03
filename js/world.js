@@ -13,9 +13,9 @@ try{
 }
 renderer.setPixelRatio(Math.min(devicePixelRatio, LOWQ?1.3:1.8));
 renderer.setSize(innerWidth, innerHeight);
-renderer.shadowMap.enabled = true;
-renderer.shadowMap.type = LOWQ ? THREE.BasicShadowMap : THREE.PCFShadowMap;
-renderer.shadowMap.autoUpdate = false;
+/* 그림자 맵은 쓰지 않는다 — 시작할 때 가장 무거운 비용이었다.
+   입체감은 캐릭터 발밑의 값싼 원반 그림자(blobShadow)로 대신한다. */
+renderer.shadowMap.enabled = false;
 renderer.outputEncoding = THREE.sRGBEncoding;
 document.getElementById('scene').appendChild(renderer.domElement);
 
@@ -29,11 +29,6 @@ const hemi = new THREE.HemisphereLight(ART.hemi.sky, ART.hemi.ground, ART.hemi.i
 scene.add(hemi);
 const sun = new THREE.DirectionalLight(ART.sun.color, ART.sun.intensity);
 sun.position.set.apply(sun.position, ART.sun.dir);
-sun.castShadow = true;
-sun.shadow.mapSize.set(LOWQ?768:1024, LOWQ?768:1024);
-sun.shadow.camera.near = 40; sun.shadow.camera.far = 260;
-sun.shadow.camera.left=-46; sun.shadow.camera.right=46; sun.shadow.camera.top=46; sun.shadow.camera.bottom=-46;
-sun.shadow.bias = -0.0012; sun.shadow.normalBias = 0.6;
 scene.add(sun); scene.add(sun.target);
 const rim = new THREE.DirectionalLight(ART.rim.color, ART.rim.intensity);
 rim.position.set.apply(rim.position, ART.rim.dir); scene.add(rim);
@@ -75,8 +70,7 @@ let terrain;
   }
   g.setAttribute('color', new THREE.BufferAttribute(col,3));
   g.computeVertexNormals();
-  terrain = new THREE.Mesh(g, new THREE.MeshLambertMaterial({vertexColors:true, flatShading:true}));
-  terrain.receiveShadow = true; scene.add(terrain);
+  terrain = new THREE.Mesh(g, new THREE.MeshLambertMaterial({vertexColors:true, flatShading:true})); scene.add(terrain);
 })();
 
 /* ══════════════ 바다 ══════════════ */
@@ -143,9 +137,30 @@ function nearShrine(x,z,r){ for(const s of SHRINES) if(Math.hypot(x-s.x,z-s.z)<r
       D.updateMatrix(); m.setMatrixAt(i, D.matrix);
     });
     m.instanceMatrix.needsUpdate = true;
-    m.castShadow = shadow!==false; m.receiveShadow = true; m.frustumCulled = false;
+    m.frustumCulled = false;
     props.add(m); return m;
   }
+  /* 나무·바위 발밑 원반 그림자 — InstancedMesh 하나로 전부 그린다 (드로우콜 +2) */
+  (function groundBlobs(){
+    const put=(list, sizeOf)=>{
+      if(!list.length) return null;
+      const m=new THREE.InstancedMesh(BLOB_GEO,
+        new THREE.MeshBasicMaterial({map:BLOB_TEX, transparent:true, depthWrite:false, fog:false, opacity:1}),
+        list.length);
+      list.forEach((v,i)=>{
+        D.position.set(v[0], hAt(v[0],v[2])+0.05, v[2]);
+        D.rotation.set(-Math.PI/2, 0, 0);
+        D.scale.setScalar(sizeOf(v));
+        D.updateMatrix(); m.setMatrixAt(i, D.matrix);
+      });
+      m.instanceMatrix.needsUpdate=true; m.frustumCulled=false; m.renderOrder=-1;
+      props.add(m); return m;
+    };
+    put(trunks, v=>2.6*(v[3]||1));
+    const allRocks=[].concat.apply([], rocks);
+    put(allRocks, v=>1.5*(v[3]||1));
+  })();
+
   inst(TREE_GEO.trunk, matte(ART.trunk), trunks, 'trunk');
   canopies.forEach((L,i)=>inst(TREE_GEO.canopy, matte(ART.foliage[i]), L, 'canopy'));
   bushes.forEach((L,i)=>inst(TREE_GEO.bush, matte(ART.bush[i]), L, 'flat'));
@@ -187,23 +202,22 @@ const cityGroup = new THREE.Group(); scene.add(cityGroup);
 (function buildCity(){
   const gy = hAt(0,0), C = ART.city;
   const plaza = new THREE.Mesh(new THREE.CylinderGeometry(17,17.6,0.7,32), matte(C.plaza));
-  plaza.position.set(0, gy+0.15, 0); plaza.receiveShadow = true; cityGroup.add(plaza);
+  plaza.position.set(0, gy+0.15, 0); cityGroup.add(plaza);
   const ring = new THREE.Mesh(new THREE.TorusGeometry(14.5,0.45,6,48), matte(C.plazaEdge));
   ring.rotation.x = Math.PI/2; ring.position.set(0, gy+0.55, 0); cityGroup.add(ring);
 
   /* 중앙 전력탑 */
   const tower = new THREE.Group(); tower.position.set(0, gy+0.4, 0);
   const base = new THREE.Mesh(new THREE.CylinderGeometry(3.2,4.4,2.2,8), matte(C.stone));
-  base.position.y = 1.1; base.castShadow = true; tower.add(base);
+  base.position.y = 1.1; tower.add(base);
   for(let i=0;i<4;i++){
     const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.22,0.30,13,6), matte(C.wood));
     const a = i/4*Math.PI*2;
     leg.position.set(Math.cos(a)*2.3, 8.2, Math.sin(a)*2.3);
-    leg.rotation.z = Math.cos(a)*0.09; leg.rotation.x = -Math.sin(a)*0.09;
-    leg.castShadow = true; tower.add(leg);
+    leg.rotation.z = Math.cos(a)*0.09; leg.rotation.x = -Math.sin(a)*0.09; tower.add(leg);
   }
   const cap = new THREE.Mesh(new THREE.CylinderGeometry(2.6,1.6,2.2,8), matte(C.stone));
-  cap.position.y = 15.3; cap.castShadow = true; tower.add(cap);
+  cap.position.y = 15.3; tower.add(cap);
   const beaconMat = glow(0x2c4258);
   const beacon = new THREE.Mesh(new THREE.IcosahedronGeometry(2.1,1), beaconMat);
   beacon.position.y = 17.6; tower.add(beacon);
@@ -218,15 +232,15 @@ const cityGroup = new THREE.Group(); scene.add(cityGroup);
     const g = new THREE.Group();
     const w = 3.6+rnd()*1.9, h = 2.6+rnd()*1.6;
     const wall = new THREE.Mesh(new THREE.CylinderGeometry(w*0.62, w*0.72, h, 4), matte(C.wall[(rnd()*4)|0]));
-    wall.rotation.y = Math.PI/4; wall.position.y = h/2; wall.castShadow = true; wall.receiveShadow = true; g.add(wall);
+    wall.rotation.y = Math.PI/4; wall.position.y = h/2; g.add(wall);
     const rh = 1.5+rnd()*0.5;
     const roof = new THREE.Mesh(new THREE.ConeGeometry(w*1.02, rh, 4), matte(C.roof[(rnd()*4)|0]));
-    roof.rotation.y = Math.PI/4; roof.position.y = h+rh/2-0.06; roof.castShadow = true; g.add(roof);
+    roof.rotation.y = Math.PI/4; roof.position.y = h+rh/2-0.06; g.add(roof);
     const door = new THREE.Mesh(new THREE.PlaneGeometry(0.62, 1.15), matte(C.wood));
     door.position.set(0, 0.58, w*0.665); g.add(door);
     if(rnd()<0.6){
       const ch = new THREE.Mesh(new THREE.CylinderGeometry(0.20,0.24,1.1,6), matte(C.stone));
-      ch.position.set(w*0.28, h+1.3, -w*0.22); ch.castShadow = true; g.add(ch);
+      ch.position.set(w*0.28, h+1.3, -w*0.22); g.add(ch);
     }
     const win = new THREE.Mesh(new THREE.PlaneGeometry(0.85,1.0), glow(0x3b4a5c));
     win.position.set(0, h*0.68, w*0.648); g.add(win); cityLights.push(win.material);

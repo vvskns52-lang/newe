@@ -31,9 +31,9 @@ PUZZLES.pv=api=>{
   return {draw(g,t,dt){
     const P=st.I/100*st.M*60;
     upd([P.toFixed(0)+' W', (st.I/100*st.M*12).toFixed(0)+' e⁻/s', '300 W']);
-    if(P>=100) api.step(0);
-    if(Math.abs(P-300)<=20) api.step(1);
-    if(api.has(0)&&st.I===0) api.step(2);
+    api.hold(0, P>=100, dt, 1.4);
+    api.hold(1, Math.abs(P-300)<=20, dt, 2.4);
+    api.hold(2, api.has(0)&&st.I===0, dt, 1.6);
     const day=st.I/100;
     const c1=`rgb(${Math.round(18+day*90)},${Math.round(34+day*130)},${Math.round(62+day*110)})`;
     const c2=`rgb(${Math.round(12+day*120)},${Math.round(22+day*110)},${Math.round(40+day*60)})`;
@@ -150,7 +150,7 @@ PUZZLES.st=api=>{
     TX(g,'집열탑 수신기',REC.x,REC.y-40,15,'#ffd764','center');
     // 열/온도
     st.T += (hits*16 - 6)*dt; st.T=clamp(st.T,20,340);
-    if(hits===3) api.step(0);
+    api.hold(0, hits===3, dt, 2.0);
     if(st.T>=100) api.step(1);
     if(st.T>=150){ st.hold+=dt; if(st.hold>=3) api.step(2); } else st.hold=Math.max(0,st.hold-dt*0.6);
     upd([hits+' / 3', st.T.toFixed(0)+' ℃', st.T>=150?'가동 중':'정지']);
@@ -190,9 +190,9 @@ PUZZLES.wind=api=>{
     const rpm = st.v>=25?0 : P>0? 8+st.v*1.1 : 0;
     st.rot += rpm*dt*0.5;
     upd([P.toFixed(2)+' MW', state, rpm.toFixed(0)]);
-    if(P>0) api.step(0);
-    if(P>=1.99) api.step(1);
-    if(st.v>=25) api.step(2);
+    api.hold(0, P>0, dt, 1.2);
+    api.hold(1, P>=1.99, dt, 2.4);
+    api.hold(2, st.v>=25, dt, 1.6);
     bgGrid(g, st.v>=25? '#3a2b3f':'#1b3350', '#0d1626');
     // 바람선
     g.lineCap='round';
@@ -261,8 +261,8 @@ PUZZLES.hyd=api=>{
     if(st.pump) st.level += 5.0*dt;
     st.level=clamp(st.level,0,100);
     if(st.level<=0.5) st.dry=true;
-    if(isDay && P>=200) api.step(0);
-    if(!isDay && st.level>=80) api.step(1);
+    api.hold(0, isDay && P>=200, dt, 1.2);
+    api.hold(1, !isDay && st.level>=80, dt, 1.2);
     if(st.prevDay && !isDay) st.prevDay=false;
     if(!st.prevDay && isDay){ st.prevDay=true; if(!st.dry && api.has(0)) api.step(2); st.dry=false; }
     st.rot += P*dt*0.02;
@@ -337,8 +337,8 @@ PUZZLES.geo=api=>{
                 ['열수 대수층',3.2,4.2,'#c96a55'],['마그마 접근층',4.2,5,'#8e3b2c']];
   return {draw(g,t,dt){
     const T=temp(), steam=inBand(), P=steam? 48+Math.sin(t)*0.6 : (T>=150? 12:0);
-    if(T>=150) api.step(0);
-    if(steam) api.step(1);
+    api.hold(0, T>=150, dt, 1.8);
+    api.hold(1, steam, dt, 2.0);
     if(st.observing){ st.obs+=dt; if(!steam){ st.observing=false; obsBtn.disabled=false; obsBtn.innerHTML='🕐 24시간 관측 시작'; }
       else if(st.obs>=8){ st.observing=false; obsBtn.innerHTML='✅ 관측 완료'; api.step(2); } }
     st.rot+=P*dt*0.04;
@@ -417,7 +417,7 @@ PUZZLES.oce=api=>{
       if(st.armed && Math.abs(st.tide-st.basin)<0.6){ st.cycles++; st.armed=false; } }
     else st.gen = Math.max(0, st.gen-260*dt);
     const diff=Math.abs(st.tide-st.basin);
-    if(!st.open && diff>=3.0) api.step(0);
+    api.hold(0, !st.open && diff>=3.0, dt, 1.0);
     if(st.open && st.armed) api.step(1);
     if(st.cycles>=3) api.step(2);
     st.hist.push(st.tide); if(st.hist.length>300) st.hist.shift();
@@ -591,7 +591,7 @@ PUZZLES.wst=api=>{
     const target = 250 + st.fuel*7*(0.4+st.air/100*0.8);
     st.T += (target-st.T)*1.5*dt;
     const safe = st.T>=850&&st.T<=1100;
-    if(st.T>=850) api.step(0);
+    api.hold(0, st.T>=850, dt, 1.6);
     if(safe){ st.hold+=dt; if(st.hold>=8) api.step(1); } else st.hold=Math.max(0,st.hold-dt*1.4);
     const clean=st.f.every(Boolean);
     if(clean&&api.has(1)) api.step(2);
@@ -670,9 +670,9 @@ PUZZLES.h2=api=>{
   api.note('물 분자 2개에는 수소 원자 4개·산소 원자 2개가 있습니다. 양쪽의 원자 수가 같아야 반응식이 성립합니다.');
   return {draw(g,t,dt){
     const ok = (st.a===2&&st.b===2&&st.c===1);
-    if(ok) api.step(0);
-    if(ok && st.src===2) api.step(1);
-    if(Math.abs(st.pres-700)<=20 && api.has(1)) api.step(2);
+    api.hold(0, ok, dt, 2.0);
+    api.hold(1, ok && st.src===2, dt, 1.6);
+    api.hold(2, Math.abs(st.pres-700)<=20 && api.has(1), dt, 2.4);
     upd([ok?'✓ 균형':'✗ 불균형', st.src<0?'—':SRC[st.src].co2+' g/kWh', st.pres+' 기압']);
     bgGrid(g,'#123246','#08131f');
     // 전력원
@@ -740,7 +740,7 @@ PUZZLES.fc=api=>{
     const eff = st.O>0&&st.H>0? Math.exp(-Math.pow(r-2,2)/0.35) : 0;
     const P = Math.min(st.H, st.O*2)/100*6.5*eff;
     const ratioOK = st.H>0&&st.O>0&&Math.abs(r-2)<0.12;
-    if(ratioOK) api.step(0);
+    api.hold(0, ratioOK, dt, 2.2);
     if(P>=5){ st.hold+=dt; if(st.hold>=6) api.step(1); } else st.hold=Math.max(0,st.hold-dt);
     st.water += P*dt*26;
     if(st.water>=500) api.step(2);
@@ -831,7 +831,9 @@ const MIXSRC=[
 ];
 /* 도시의 하루 전력 수요 (0시~23시) */
 const MIXDEM=[46,42,40,39,40,44,54,66,74,76,75,74,73,72,72,74,80,88,96,98,92,80,66,54];
-const MIX_BUD=100, MIX_CO2=18, MIX_SHARE=0.32, MIX_MAX=3;
+const MIX_BUD0=100, MIX_CO2=18, MIX_SHARE=0.32, MIX_MAX=3;
+/* 숨은 룬 조각 1개당 설비 예산 +5억 — 탐색에 대한 보상 */
+const mixBudget = ()=> MIX_BUD0 + runeCount()*RUNE_BONUS;
 
 PUZ_HINT.mix='한 가지에 몰아주면 절대 풀리지 않습니다. <b>열 가지를 하나씩 골고루</b> 세우고, 모자라면 <b>바이오를 하나 더</b> 지어 보세요. '+
   '(예시: 태양광1 · 태양열1 · 풍력1 · 수력1 · 지열1 · 해양1 · <b>바이오2</b> · 폐기물1 · 수소1 · 연료전지1 → 비용 85억, CO₂ 17톤, 최대 비중 21%)';
@@ -840,7 +842,7 @@ PUZZLES.mix=api=>{
   api.mission('하루 24시간, 도시의 불이 한 번도 꺼지지 않는 전력 계획을 세워라.',
     ['낮(10~15시)의 수요를 채우기',
      '밤·새벽(22~05시)도 채우기 — 태양광은 밤에 <b>0</b>이 된다',
-     '24시간 전부 채우고 <b>설비 비용 100억</b> 이내로',
+     '24시간 전부 채우고 <b>설비 비용 '+mixBudget()+'억</b> 이내로',
      '한 에너지원 비중 <b>32% 이하</b> · CO₂ <b>18톤 이하</b> — 골고루 섞기']);
 
   const st={n:new Array(MIXSRC.length).fill(0)};
@@ -869,7 +871,8 @@ PUZZLES.mix=api=>{
   rs.textContent='↺ 처음부터 다시 배치';
   rs.onclick=()=>rows.forEach(o=>o.set(0));
   ctrl.appendChild(rs);
-  const upd=api.stats([{k:'부족 시간',v:'24 h'},{k:'비용',v:'0 / '+MIX_BUD},{k:'CO₂',v:'0 / '+MIX_CO2},{k:'최대 비중',v:'—'}]);
+  const upd=api.stats([{k:'부족 시간',v:'24 h'},{k:'비용',v:'0 / '+mixBudget()},{k:'CO₂',v:'0 / '+MIX_CO2},{k:'최대 비중',v:'—'}]);
+  if(runeCount()>0) api.note('🔷 <b>고대 룬 '+runeCount()+'개</b>를 찾아 설비 예산이 <b>'+MIX_BUD0+'억 → '+mixBudget()+'억</b>으로 늘었습니다.');
   api.note('발전소 1기의 <b>설비용량</b>은 종류마다 다르고, 실제 발전량은 시간대별 조건(햇빛·바람·조석·수요)에 따라 달라집니다. '+
            '오른쪽 그래프의 <b>흰 점선이 수요</b>, <b>색이 채워진 부분이 공급</b>입니다.');
 
@@ -890,9 +893,10 @@ PUZZLES.mix=api=>{
     const nightOK = [22,23,0,1,2,3,4,5].every(h=>sup[h]>=MIXDEM[h]);
     if(dayOK) api.step(0);
     if(dayOK&&nightOK) api.step(1);
-    if(short===0&&cost<=MIX_BUD) api.step(2);
-    if(short===0&&cost<=MIX_BUD&&co2<=MIX_CO2&&share<=MIX_SHARE) api.step(3);
-    upd([short+' h', cost+' / '+MIX_BUD, co2+' / '+MIX_CO2, tot>0?Math.round(share*100)+' %':'—']);
+    const BUD=mixBudget();
+    if(short===0&&cost<=BUD) api.step(2);
+    if(short===0&&cost<=BUD&&co2<=MIX_CO2&&share<=MIX_SHARE) api.step(3);
+    upd([short+' h', cost+' / '+BUD, co2+' / '+MIX_CO2, tot>0?Math.round(share*100)+' %':'—']);
 
     /* ── 배경 ── */
     bgGrid(g,'#16283f','#0b1524');
@@ -965,7 +969,7 @@ PUZZLES.mix=api=>{
     if(lx===L) TX(g,'아직 세운 발전소가 없습니다.',L,446,12,'rgba(255,255,255,.35)');
 
     /* ── 게이지 3종 ── */
-    gauge(g,L,476,232,14, cost/MIX_BUD, cost<=MIX_BUD?'#79c8f2':'#ff7a7a','💰 설비 비용 (억원)', cost+' / '+MIX_BUD);
+    gauge(g,L,476,232,14, cost/BUD, cost<=BUD?'#79c8f2':'#ff7a7a','💰 설비 비용 (억원)'+(runeCount()?' 🔷+'+(runeCount()*RUNE_BONUS):''), cost+' / '+BUD);
     gauge(g,L+266,476,232,14, co2/MIX_CO2, co2<=MIX_CO2?'#7ae0a8':'#ff7a7a','🌫️ CO₂ (톤/일)', co2+' / '+MIX_CO2);
     gauge(g,L+532,476,232,14, share/MIX_SHARE, share<=MIX_SHARE?'#f4c04f':'#ff7a7a','⚖️ 최대 비중', (tot>0?Math.round(share*100):0)+' / 32 %');
 
@@ -973,7 +977,7 @@ PUZZLES.mix=api=>{
     let msg, col2;
     if(units===0){ msg='왼쪽에서 발전소를 하나씩 세워 보자. 한 종류만으로는 절대 하루를 채울 수 없다.'; col2='#9fb6cd'; }
     else if(short>0){ msg='⚠ 하루 중 '+short+'시간 동안 전기가 모자란다. (빨간 구간)'; col2='#ff9f9f'; }
-    else if(cost>MIX_BUD){ msg='⚠ 24시간은 채웠지만 예산을 '+(cost-MIX_BUD)+'억 초과했다.'; col2='#ff9f9f'; }
+    else if(cost>BUD){ msg='⚠ 24시간은 채웠지만 예산을 '+(cost-BUD)+'억 초과했다.'+(runeCount()<10?' (숨은 룬을 더 찾으면 예산이 늘어난다)':''); col2='#ff9f9f'; }
     else if(co2>MIX_CO2){ msg='⚠ CO₂가 '+(co2-MIX_CO2)+'톤 초과. 폐기물·바이오를 줄이고 재생에너지를 늘려 보자.'; col2='#ff9f9f'; }
     else if(share>MIX_SHARE){ msg='⚠ 한 에너지원에 '+Math.round(share*100)+'%나 의존하고 있다. 더 골고루 섞자.'; col2='#ffd764'; }
     else { msg='✓ 24시간 완벽 공급 · 예산과 CO₂ 이내 · 골고루 섞인 에너지 믹스 완성!'; col2='#7ae0a8'; }

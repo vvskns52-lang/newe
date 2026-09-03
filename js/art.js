@@ -120,6 +120,28 @@ const CHAR = {
   bodyW:0.96, bodyH:0.86, bodyD:0.62, bodyY:0.76,   // 발바닥이 0 에 닿도록 맞춘 값
   legH :0.80, armH :0.74,
 };
+/* ══════════════ 값싼 원반 그림자 ══════════════ */
+/* 실제 그림자 맵 대신 발밑에 부드러운 원반 하나를 깐다.
+   조명 계산도, 그림자 맵 렌더링도 하지 않으므로 사실상 공짜다. */
+const BLOB_TEX = (function(){
+  const cv=document.createElement('canvas'); cv.width=cv.height=64;
+  const c=cv.getContext('2d');
+  const gr=c.createRadialGradient(32,32,2,32,32,31);
+  gr.addColorStop(0,'rgba(0,0,0,.58)');
+  gr.addColorStop(0.5,'rgba(0,0,0,.34)');
+  gr.addColorStop(1,'rgba(0,0,0,0)');
+  c.fillStyle=gr; c.fillRect(0,0,64,64);
+  const t=new THREE.CanvasTexture(cv); return t;
+})();
+const BLOB_GEO = new THREE.PlaneGeometry(1,1);
+function blobShadow(size){
+  const m=new THREE.Mesh(BLOB_GEO, new THREE.MeshBasicMaterial({
+    map:BLOB_TEX, transparent:true, depthWrite:false, fog:false, opacity:0.9}));
+  m.rotation.x=-Math.PI/2; m.scale.setScalar(size||2.4);
+  m.renderOrder=-1;
+  return m;
+}
+
 function makeHumanoid(o){
   o = o || {};
   const skinM  = matte(o.skin  || ART.player.skin);
@@ -134,7 +156,7 @@ function makeHumanoid(o){
 
   /* 몸통 */
   const torso = new THREE.Mesh(new THREE.BoxGeometry(C.bodyW, C.bodyH, C.bodyD), clothM);
-  torso.position.y = C.bodyY + C.bodyH/2; torso.castShadow = true; g.add(torso);
+  torso.position.y = C.bodyY + C.bodyH/2; g.add(torso);
   const belt = new THREE.Mesh(new THREE.BoxGeometry(C.bodyW*1.04, 0.17, C.bodyD*1.04), matte(ART.city.wood));
   belt.position.y = C.bodyY + 0.10; g.add(belt);
   const collar = new THREE.Mesh(new THREE.BoxGeometry(C.bodyW*0.74, 0.16, C.bodyD*1.07),
@@ -143,7 +165,7 @@ function makeHumanoid(o){
 
   /* 머리 — 크게 */
   const head = new THREE.Mesh(new THREE.BoxGeometry(C.headW, C.headH, C.headD), skinM);
-  head.position.y = C.headY + C.headH/2; head.castShadow = true; g.add(head);
+  head.position.y = C.headY + C.headH/2; g.add(head);
   const hy = head.position.y;
   const hairTop = new THREE.Mesh(new THREE.BoxGeometry(C.headW*1.06, 0.30, C.headD*1.06), hairM);
   hairTop.position.y = hy + C.headH/2 - 0.03; g.add(hairTop);
@@ -178,7 +200,7 @@ function makeHumanoid(o){
   function limb(w, h, d, m, capM){
     const grp = new THREE.Group();
     const s = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m);
-    s.position.y = -h/2; s.castShadow = true; grp.add(s);
+    s.position.y = -h/2; grp.add(s);
     if(capM){
       const c = new THREE.Mesh(new THREE.BoxGeometry(w*1.05, h*0.26, d*1.05), capM);
       c.position.y = -h + h*0.13; grp.add(c);
@@ -196,8 +218,7 @@ function makeHumanoid(o){
   if(o.cape !== false){
     cape = new THREE.Mesh(new THREE.BoxGeometry(C.bodyW*1.02, C.bodyH*1.35, 0.10),
       matte(o.cape || ART.player.cape));
-    cape.position.set(0, C.bodyY + C.bodyH*0.55, -(C.bodyD/2 + 0.06));
-    cape.castShadow = true; g.add(cape);
+    cape.position.set(0, C.bodyY + C.bodyH*0.55, -(C.bodyD/2 + 0.06)); g.add(cape);
   }
   if(o.hat){
     const brim = new THREE.Mesh(new THREE.BoxGeometry(C.headW*1.5, 0.09, C.headD*1.5), matte(o.hat));
@@ -233,8 +254,7 @@ function makeMonsterBody(kind, r, color){
     body.scale.set(1, 1.05, 0.95);
     const tail = new THREE.Mesh(new THREE.ConeGeometry(r*0.92, r*1.7, 8), bodyM);
     tail.position.y = -r*1.05; tail.rotation.x = Math.PI; g.add(tail);
-  }
-  body.castShadow = true; g.add(body);
+  } g.add(body);
   /* 눈 */
   const eyeM = glow(0xffe08a);
   [-1,1].forEach(s=>{

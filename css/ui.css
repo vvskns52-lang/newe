@@ -72,6 +72,8 @@
 @media (prefers-reduced-motion:reduce){#hurt.on,#downFlash.on{animation-duration:.01s}}
 #sparkHud{position:absolute;top:16px;right:16px;padding:10px 14px;display:flex;align-items:center;gap:8px}
 #sparkHud b{font-family:var(--num);font-size:18px}
+#runeHud{position:absolute;top:66px;right:16px;padding:8px 13px;display:flex;align-items:center;gap:8px}
+#runeHud b{font-family:var(--num);font-size:17px;color:#2b7f9c}
 #minimap{position:absolute;bottom:16px;right:16px;width:178px;height:178px;border-radius:50%;
   border:3px solid var(--line);box-shadow:0 8px 24px rgba(0,0,0,.3);background:#1e3a5c;overflow:hidden}
 #minimap canvas{width:100%;height:100%}
@@ -129,6 +131,17 @@
   font-size:11px;font-style:normal;flex:0 0 auto}
 .step b,.step em{display:inline;font-size:inherit;font-style:normal;font-weight:900;color:#c2691f}
 .step.done{color:#1b2b3d}
+/* ───────── 단계 유지 게이지 (슬라이더 마구 흔들기 방지) ───────── */
+.step{position:relative;padding-bottom:5px}
+.step::after{content:'';position:absolute;left:27px;right:0;bottom:0;height:3px;border-radius:2px;
+  background:linear-gradient(90deg,var(--leaf),#8fd6a8);
+  transform:scaleX(var(--p,0));transform-origin:left center;
+  transition:transform .12s linear;opacity:var(--po,0)}
+.step.done::after{opacity:0}
+.step i.hold{border-color:#3f9d6a;color:#3f9d6a}
+.holdTip{margin-top:9px;font-size:11.5px;font-weight:700;color:var(--muted);line-height:1.45}
+.holdTip b{display:inline;font-size:inherit;color:#c2691f}
+
 .step.done i{background:var(--leaf);border-color:#2f7a4d;color:#fff}
 .ctrl{background:#fffdf6;border:2px solid var(--line);border-radius:14px;padding:12px 14px}
 .ctrl label{display:flex;justify-content:space-between;align-items:baseline;font-weight:900;font-size:13.5px;margin-bottom:7px}
@@ -160,6 +173,28 @@ input[type=range]::-moz-range-thumb{width:20px;height:20px;border-radius:50%;bac
 .quizBox .opt:hover{border-color:#1b2b3d}
 .quizBox .opt.ok{background:var(--leaf);color:#fff;border-color:#2f7a4d}
 .quizBox .opt.no{background:#ffcdc7;border-color:#c0392b}
+/* ───────── 확인 문제 = 정령과의 대화 ───────── */
+.askBox{background:linear-gradient(180deg,#fffdf6,#fff6e2)}
+.askWho{display:flex;align-items:center;gap:8px;margin-bottom:9px}
+.askWho .face{font-size:26px;width:38px;height:38px;flex:0 0 auto;display:grid;place-items:center;
+  border-radius:50%;background:#fff;border:2px solid var(--line);box-shadow:0 2px 0 rgba(0,0,0,.05)}
+.askWho b{font-size:14px;font-weight:900}
+.askWho i{font-size:11.5px;font-style:normal;font-weight:700;color:var(--muted)}
+.askLead{position:relative;font-size:13px;line-height:1.7;font-weight:700;color:#41566b;
+  background:#fff;border:2px solid var(--line);border-radius:12px;padding:10px 12px;margin:0 0 10px 6px}
+.askLead::before{content:'';position:absolute;left:12px;top:-9px;width:12px;height:12px;background:#fff;
+  border-left:2px solid var(--line);border-top:2px solid var(--line);transform:rotate(45deg)}
+.askLead b{color:#c2691f}
+.quizBox .askQ{font-size:15px;line-height:1.55;margin:0 0 4px 6px}
+.askYou{font-size:11.5px;font-weight:800;color:var(--muted);margin:8px 0 6px 2px}
+.askReact{display:flex;gap:9px;align-items:flex-start;font-size:13px;line-height:1.65;font-weight:700;
+  border-radius:12px;padding:10px 12px;margin-top:9px}
+.askReact .face{font-size:20px;flex:0 0 auto;line-height:1.3}
+.askReact.ok{background:#e6f7ec;border:2px solid #7ac89a;color:#215c3c}
+.askReact.no{background:#fff1ec;border:2px solid #efab97;color:#8a4232}
+.askReact b{color:#c2691f}
+.askNote{margin-top:7px;font-size:12px;font-weight:600;line-height:1.6;opacity:.9}
+.quizBox .opt:disabled{opacity:.5;cursor:default}
 .explain{font-size:13px;line-height:1.6;color:#41566b;margin-top:8px;padding-top:8px;border-top:1px dashed var(--line)}
 .explain strong{color:#c2691f}
 .note{font-size:12.5px;color:var(--muted);line-height:1.6;font-weight:600}
@@ -214,6 +249,7 @@ body.touch #touchUI{display:block}
   box-shadow:0 5px 14px rgba(0,0,0,.22);display:none}
 body.touch #fsBtn, body.canfs #fsBtn{display:block}
 body.touch #sparkHud{right:70px}
+body.touch #runeHud{right:70px}
 /* 터치 기기: 조작 버튼과 겹치지 않게 HUD 재배치 */
 body.touch #minimap{bottom:auto;top:78px;right:16px;width:150px;height:150px}
 body.touch #quest{bottom:auto;top:auto;left:16px;bottom:190px;max-width:250px;padding:10px 12px}

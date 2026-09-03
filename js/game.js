@@ -3,15 +3,16 @@
    ═══════════════════════════════════════════════════ */
 /* ══════════════ 게임 상태 ══════════════ */
 const STATE = {
-  cores:{}, sparks:0, hintUsed:{}, talked:{}, started:false, hp:3, inv:0, heal:0, monLevel:1, finalDone:false,
+  cores:{}, sparks:0, hintUsed:{}, talked:{}, started:false, hp:3, inv:0, heal:0, monLevel:2, finalDone:false, runes:{},
   mode:'play',   // play | dialog | shrine | ending
   quest:{t:'빛의 도시로', b:'도시 광장의 시장 하람에게 말을 걸어 무슨 일이 벌어졌는지 들어보자.'}
 };
 try{ const sv=JSON.parse(localStorage.getItem('energyChronicle')||'null');
-     if(sv){ STATE.cores=sv.cores||{}; STATE.sparks=sv.sparks||0; STATE.talked=sv.talked||{}; STATE.finalDone=!!sv.finalDone;
-       if(sv.monLevel!==undefined) STATE.monLevel=sv.monLevel; } }catch(e){}
-function save(){ try{ localStorage.setItem('energyChronicle', JSON.stringify({cores:STATE.cores,sparks:STATE.sparks,talked:STATE.talked,monLevel:STATE.monLevel,finalDone:STATE.finalDone})); }catch(e){} }
+     if(sv){ STATE.cores=sv.cores||{}; STATE.sparks=sv.sparks||0; STATE.talked=sv.talked||{}; STATE.finalDone=!!sv.finalDone; STATE.runes=sv.runes||{};
+       if(sv.monLevel!==undefined && sv.mv===2) STATE.monLevel=sv.monLevel;   /* 밀도 기본값이 '적당히'로 바뀌어, 옛 저장값은 한 번만 무시한다 */ } }catch(e){}
+function save(){ try{ localStorage.setItem('energyChronicle', JSON.stringify({cores:STATE.cores,sparks:STATE.sparks,talked:STATE.talked,monLevel:STATE.monLevel, mv:2,finalDone:STATE.finalDone,runes:STATE.runes})); }catch(e){} }
 const coreCount = ()=>Object.keys(STATE.cores).length;
+const runeCount = ()=>Object.keys(STATE.runes).length;
 
 /* ══════════════ HUD ══════════════ */
 (function initHud(){
@@ -29,6 +30,8 @@ function refreshHud(){
   $('#pwPct').textContent=pct+'%';
   $('#pwCnt').textContent='코어 '+n+' / 10';
   $('#sparkN').textContent=STATE.sparks;
+  const rh=$('#runeHud'), rn=$('#runeN');
+  if(rh){ rn.textContent=runeCount()+' / 10'; rh.style.display = runeCount()>0 ? '' : 'none'; }
   SHRINES.forEach(s=>$('#cd_'+s.id).classList.toggle('got', !!STATE.cores[s.id]));
   for(let i=0;i<3;i++){ const e=$('#hp'+i); if(e) e.classList.toggle('off', i>=STATE.hp); }
   $('#qTitle').textContent=STATE.quest.t; $('#qBody').innerHTML=STATE.quest.b;
@@ -236,6 +239,13 @@ function drawMinimap(){
     mg.fillStyle = STATE.finalDone? '#ffffff' : '#ffd166';
     mg.fill(); mg.lineWidth=2.6; mg.strokeStyle= STATE.finalDone? '#7bd67b':'#1b2b3d'; mg.stroke();
   }
+  // 숨은 룬 (가까이 갔을 때만 물음표로 표시)
+  RUNES.forEach(r=>{
+    if(STATE.runes[r.id]) return;
+    if(Math.hypot(r.x-P.pos.x, r.z-P.pos.z) > RUNE_SHOW+16) return;
+    mg.beginPath(); mg.arc(r.x*S, r.z*S, 4.2, 0, 6.283);
+    mg.fillStyle='#9fe6ff'; mg.fill(); mg.lineWidth=2; mg.strokeStyle='#1b2b3d'; mg.stroke();
+  });
   // NPC
   npcObjs.forEach(n=>{ mg.beginPath(); mg.arc(n.data.x*S,n.data.z*S,3.4,0,6.283); mg.fillStyle='#ffe08a'; mg.fill(); });
   // 플레이어
@@ -262,17 +272,16 @@ function updateCityLight(){
 const shrineLight = new THREE.PointLight(0xffffff, 0, 34); scene.add(shrineLight);
 
 /* 프레임이 무거우면 자동으로 품질을 낮춘다 */
-const PERF={acc:0, n:0, step:0, shadowEvery:(LOWQ?3:2), waterEvery:2};
+const PERF={acc:0, n:0, step:0, waterEvery:2};
 function autoQuality(dt){
   PERF.acc+=dt; PERF.n++;
   if(PERF.acc<2.5) return;
   const fps=PERF.n/PERF.acc; PERF.acc=0; PERF.n=0;
   if(fps<34 && PERF.step===0){
-    PERF.step=1; PERF.shadowEvery=4;
+    PERF.step=1;
     renderer.setPixelRatio(1); renderer.setSize(innerWidth,innerHeight);
   } else if(fps<26 && PERF.step===1){
-    PERF.step=2; renderer.shadowMap.enabled=false;
-    scene.traverse(o=>{ if(o.material){ (Array.isArray(o.material)?o.material:[o.material]).forEach(m=>m.needsUpdate=true); } });
+    PERF.step=2; PERF.waterEvery=4;
   }
 }
 
@@ -322,6 +331,12 @@ function animate(){
     /* 캐릭터 애니메이션 */
     const sw=Math.sin(P.walk*2.1)*Math.min(P.speed/9,1);
     player.g.rotation.y = P.yaw;
+    /* 발밑 원반 그림자 — 점프하면 작아지고 옅어진다 */
+    const gsy=hAt(P.pos.x,P.pos.z), lift=Math.max(0,P.pos.y-gsy);
+    playerShadow.position.set(P.pos.x, gsy+0.07, P.pos.z);
+    const psc=Math.max(1.5, 2.5-lift*0.14);
+    playerShadow.scale.setScalar(psc);
+    playerShadow.material.opacity=clamp(0.95-lift*0.10, 0.2, 0.95);
     player.lL.rotation.x =  sw*0.85; player.lR.rotation.x = -sw*0.85;
     player.aL.rotation.x = -sw*0.7;  player.aR.rotation.x =  sw*0.7;
     player.torso.rotation.z = sw*0.05;
@@ -336,9 +351,6 @@ function animate(){
     camera.position.set(cx,cyy,cz);
     camera.lookAt(P.pos.x, P.pos.y+1.9, P.pos.z);
 
-    /* 그림자 카메라 추종 */
-    sun.position.set(P.pos.x+70, P.pos.y+110, P.pos.z+50);
-    sun.target.position.set(P.pos.x, P.pos.y, P.pos.z); sun.target.updateMatrixWorld();
 
     /* 상호작용 대상 */
     if(STATE.mode==='play'){
@@ -352,6 +364,26 @@ function animate(){
           : (STATE.cores[nearTarget.s.id] ? nearTarget.s.name+' 다시 들어가기 (클리어)' : nearTarget.s.name+' 시련 시작');
       } else pr.classList.remove('on');
     }
+    /* 숨은 룬 조각 — 가까이 가야 나타나고, 더 가까이 가면 줍는다 */
+    for(const r of runeObjs){
+      if(STATE.runes[r.data.id]){ r.g.visible=false; continue; }
+      const d=Math.hypot(r.data.x-P.pos.x, r.data.z-P.pos.z);
+      if(d>RUNE_SHOW){ r.g.visible=false; continue; }
+      r.g.visible=true;
+      const near=1-Math.min(1, (d-RUNE_TAKE)/(RUNE_SHOW-RUNE_TAKE));   /* 0 멀다 → 1 코앞 */
+      r.core.rotation.y+=dt*1.4; r.halo.rotation.y-=dt*0.9;
+      r.core.position.y = 1.5 + Math.sin(t*2.0)*0.22;
+      r.halo.position.y = r.core.position.y;
+      r.halo.material.opacity = 0.14 + near*0.34;
+      r.ring.material.opacity = 0.18 + near*0.55;
+      const sc = 0.8 + near*0.45;
+      r.ring.scale.set(sc,sc,sc);
+      if(d<RUNE_TAKE){
+        STATE.runes[r.data.id]=true; r.g.visible=false; save(); refreshHud();
+        toast('🔷','고대 룬 조각 '+runeCount()+' / 10 &nbsp;<span style="color:#6d7f92;font-weight:700">(관제탑 설비 예산 +'+RUNE_BONUS+'억)</span>',2600);
+      }
+    }
+
     /* 파편 수집 */
     for(const sp of sparks){
       if(sp.got) continue;
@@ -439,7 +471,6 @@ function animate(){
   autoQuality(dt);
   mmTick++;
   if(mmTick%3===0) drawMinimap();
-  if(renderer.shadowMap.enabled && mmTick % PERF.shadowEvery === 0) renderer.shadowMap.needsUpdate = true;
   renderer.render(scene,camera);
 }
 

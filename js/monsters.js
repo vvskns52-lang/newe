@@ -15,14 +15,15 @@ const MTYPES = {
 const MON = { pool:[], bolts:[], drops:[], zones:[], seen:{}, spawnT:0, ready:false };
 /* 몬스터 밀도 — 0 없음 · 1 적게(기본) · 2 보통 */
 const MON_LEVELS = [
-  {name:'없음',  cap:0, every:99, desc:'몬스터가 나오지 않습니다. 사당 학습에만 집중할 때.'},
-  {name:'적게',  cap:3, every:2.6, desc:'가끔 한두 마리. 수업 중 이동이 편합니다. (기본)'},
-  {name:'보통',  cap:6, every:1.2, desc:'꾸준히 나타납니다. 자유 탐험·과제용.'},
+  {name:'없음',   cap:0, every:99,  desc:'몬스터가 나오지 않습니다. 사당 학습에만 집중할 때.'},
+  {name:'적게',   cap:3, every:2.6, desc:'가끔 한두 마리. 이동이 아주 편합니다.'},
+  {name:'적당히', cap:4, every:1.9, desc:'적게와 보통의 중간. 이동이 심심하지 않을 만큼만 나옵니다. (기본)'},
+  {name:'보통',   cap:6, every:1.2, desc:'꾸준히 나타납니다. 자유 탐험·과제용.'},
 ];
-function monLv(){ return MON_LEVELS[STATE.monLevel!==undefined?STATE.monLevel:1]; }
+function monLv(){ return MON_LEVELS[STATE.monLevel!==undefined?STATE.monLevel:2]; }
 function setMonLevel(i){
   STATE.monLevel=i; save();
-  if(i===0) MON.pool.forEach(m=>{ m.alive=false; m.g.visible=false; });
+  if(i===0) MON.pool.forEach(m=>{ m.alive=false; m.g.visible=false; m.shadow.visible=false; });
   MON.spawnT=1.2;
   document.querySelectorAll('#monLv .chip').forEach((c,k)=>c.classList.toggle('sel',k===i));
   const d=$('#monLvDesc'); if(d) d.textContent=MON_LEVELS[i].desc;
@@ -59,8 +60,9 @@ function makeMonster(type){
       new THREE.MeshLambertMaterial({color:T.col, flatShading:true, transparent:true, opacity:0.45, depthWrite:false}));
     g.add(w); wisp.push(w);
   }
+  const bs = blobShadow(T.r*2.6); scene.add(bs); bs.visible=false;
   g.visible = false; scene.add(g);
-  return {g, body:built.body, wisp, type:T, alive:false, hp:0, ph:rnd()*6.28, die:0, vx:0, vz:0};
+  return {g, shadow:bs, body:built.body, wisp, type:T, alive:false, hp:0, ph:rnd()*6.28, die:0, vx:0, vz:0};
 }
 
 (function initMon(){
@@ -157,7 +159,7 @@ function updateMonsters(dt, t){
           if(Math.hypot(x,z)<SAFE_R) continue;
           const y=hAt(x,z); if(y<1.2) continue;
           const m=MON.pool.find(o=>!o.alive); if(!m) break;
-          m.alive=true; m.die=0; m.hp=m.type.hp; m.g.visible=true;
+          m.alive=true; m.die=0; m.hp=m.type.hp; m.g.visible=true; m.shadow.visible=true;
           m.g.position.set(x, y+m.type.r+0.5, z);
           m.g.scale.setScalar(1); m.body.material.opacity=0.94;
           break;
@@ -177,12 +179,12 @@ function updateMonsters(dt, t){
       m.g.scale.setScalar(k*1.25);
       m.body.material.opacity=0.94*k;
       p.y += dt*2.2;
-      if(m.die<=0){ m.alive=false; m.g.visible=false; }
+      if(m.die<=0){ m.alive=false; m.g.visible=false; m.shadow.visible=false; }
       continue;
     }
     const dx=P.pos.x-p.x, dz=P.pos.z-p.z, d=Math.hypot(dx,dz);
     // 도시 안전지대·먼 거리면 소멸
-    if(Math.hypot(p.x,p.z)<SAFE_R-2 || d>58){ m.alive=false; m.g.visible=false; continue; }
+    if(Math.hypot(p.x,p.z)<SAFE_R-2 || d>58){ m.alive=false; m.g.visible=false; m.shadow.visible=false; continue; }
     const spd=m.type.spd*(d<26?1:0.55);
     const wob = m.type.key==='dust' ? Math.sin(t*7+m.ph)*0.55 : 0;
     if(d>0.5){
@@ -191,6 +193,10 @@ function updateMonsters(dt, t){
     }
     const gy=hAt(p.x,p.z)+m.type.r+0.5;
     p.y = lerp(p.y, gy + (m.type.key==='co2'?1.4:0) + Math.abs(Math.sin(t*3+m.ph))*0.45, 0.16);
+    const sy=hAt(p.x,p.z);
+    m.shadow.position.set(p.x, sy+0.06, p.z);
+    const lift=Math.max(0, p.y-sy);
+    m.shadow.material.opacity = clamp(0.9 - lift*0.09, 0.18, 0.9);
     m.g.rotation.y = Math.atan2(dx,dz);
     m.body.rotation.x += dt*0.6; m.body.rotation.z += dt*0.4;
     m.wisp.forEach((w,i)=>{
@@ -261,7 +267,7 @@ function hurtPlayer(m){
 function downPlayer(){
   STATE.hp=3; STATE.inv=2.4; refreshHud();
   P.pos.set(0, hAt(0,7), 7); P.vy=0; CAM.tYaw=0;
-  MON.pool.forEach(m=>{ m.alive=false; m.g.visible=false; });
+  MON.pool.forEach(m=>{ m.alive=false; m.g.visible=false; m.shadow.visible=false; });
   const f=$('#downFlash'); f.classList.remove('on'); void f.offsetWidth; f.classList.add('on');
   toast('🌫️','오염에 쓰러져 빛의 도시에서 깨어났다 — 진행 상황은 그대로입니다', 4200);
 }

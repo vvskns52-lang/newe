@@ -26,8 +26,9 @@ function buildShrine(s){
   const col=new THREE.Color(s.col);
   const stone=matte(ART.shrine.stone), stone2=matte(ART.shrine.stone2);
   // 기단
-  const pad=new THREE.Mesh(new THREE.CylinderGeometry(8.2,9,1.1,10), stone); pad.position.y=0.3; pad.receiveShadow=true; G.add(pad);
-  const pad2=new THREE.Mesh(new THREE.CylinderGeometry(6.3,6.6,0.5,10), stone2); pad2.position.y=1.0; pad2.receiveShadow=true; G.add(pad2);
+  const gsh=blobShadow(24); gsh.position.y=0.03; G.add(gsh);
+  const pad=new THREE.Mesh(new THREE.CylinderGeometry(8.2,9,1.1,10), stone); pad.position.y=0.3; G.add(pad);
+  const pad2=new THREE.Mesh(new THREE.CylinderGeometry(6.3,6.6,0.5,10), stone2); pad2.position.y=1.0; G.add(pad2);
   // 룬 링
   const rune=new THREE.Mesh(new THREE.TorusGeometry(5.2,0.22,6,36), new THREE.MeshBasicMaterial({color:s.col}));
   rune.rotation.x=Math.PI/2; rune.position.y=1.32; G.add(rune);
@@ -35,7 +36,7 @@ function buildShrine(s){
   for(let i=0;i<4;i++){
     const a=i/4*Math.PI*2+Math.PI/4;
     const p=new THREE.Mesh(new THREE.CylinderGeometry(0.55,0.7,6.4,6), stone);
-    p.position.set(Math.cos(a)*6.4, 3.4, Math.sin(a)*6.4); p.castShadow=true; G.add(p);
+    p.position.set(Math.cos(a)*6.4, 3.4, Math.sin(a)*6.4); G.add(p);
     const cap=new THREE.Mesh(new THREE.BoxGeometry(1.7,0.6,1.7), stone2);
     cap.position.set(Math.cos(a)*6.4, 6.85, Math.sin(a)*6.4); cap.rotation.y=a; G.add(cap);
   }
@@ -48,13 +49,12 @@ function buildShrine(s){
   const dev=new THREE.Group(); dev.position.y=1.25; G.add(dev);
   const spin=[];   // 회전 애니메이션 대상
   const flow=[];   // 상하 애니메이션 대상
-  const A=(m,x,y,z)=>{m.position.set(x,y,z);m.castShadow=true;dev.add(m);return m;};
+  const A=(m,x,y,z)=>{m.position.set(x,y,z);dev.add(m);return m;};
   switch(s.id){
     case 'pv': {
       for(let i=0;i<3;i++){
         const pnl=new THREE.Group();
-        const board=new THREE.Mesh(new THREE.BoxGeometry(4.4,0.18,2.7), mat(0x2a4a86));
-        board.castShadow=true; pnl.add(board);
+        const board=new THREE.Mesh(new THREE.BoxGeometry(4.4,0.18,2.7), mat(0x2a4a86)); pnl.add(board);
         for(let c=0;c<4;c++) for(let r2=0;r2<2;r2++){
           const cell=new THREE.Mesh(new THREE.BoxGeometry(0.95,0.06,1.15), mat(0x4f7fd0));
           cell.position.set(-1.65+c*1.1, 0.14, -0.65+r2*1.3); pnl.add(cell);
@@ -71,7 +71,7 @@ function buildShrine(s){
         const a=Math.PI*0.25+i/7*Math.PI*1.5;
         const mir=new THREE.Mesh(new THREE.BoxGeometry(1.9,0.12,1.4), new THREE.MeshLambertMaterial({color:0xdfeaf5,flatShading:true}));
         mir.position.set(Math.cos(a)*4.6, 1.2, Math.sin(a)*4.6);
-        mir.lookAt(new THREE.Vector3(0,5.5,0)); mir.castShadow=true; dev.add(mir);
+        mir.lookAt(new THREE.Vector3(0,5.5,0)); dev.add(mir);
         const st2=new THREE.Mesh(new THREE.CylinderGeometry(0.13,0.13,1.2,5), stone2);
         st2.position.set(Math.cos(a)*4.6,0.6,Math.sin(a)*4.6); dev.add(st2);
       }
@@ -83,14 +83,13 @@ function buildShrine(s){
       const hub=new THREE.Mesh(new THREE.SphereGeometry(0.42,8,6), matte(ART.shrine.stone2)); rot.add(hub);
       for(let i=0;i<3;i++){
         const bl=new THREE.Mesh(new THREE.BoxGeometry(0.32,6.4,0.12), mat(0xffffff));
-        bl.position.y=3.2; bl.castShadow=true;
+        bl.position.y=3.2;
         const w=new THREE.Group(); w.rotation.z=i/3*Math.PI*2; w.add(bl); rot.add(w);
       }
       spin.push({m:rot, axis:'z', spd:1.9});
       break; }
     case 'hyd': {
       const dam=A(new THREE.Mesh(new THREE.BoxGeometry(11,5.4,1.8), stone),0,2.7,-2.2);
-      dam.receiveShadow=true;
       const res=new THREE.Mesh(new THREE.BoxGeometry(10.6,4.6,5.4), new THREE.MeshLambertMaterial({color:0x4ea3e0,transparent:true,opacity:0.85,flatShading:true}));
       res.position.set(0,2.3,-5.6); dev.add(res);
       for(let i=0;i<3;i++){
@@ -107,7 +106,7 @@ function buildShrine(s){
       lava.rotation.x=-Math.PI/2; lava.position.set(0,3.42,-2.6); dev.add(lava);
       for(let i=0;i<3;i++){
         const pipe=new THREE.Mesh(new THREE.CylinderGeometry(0.28,0.28,5.2,6), matte(ART.shrine.stone2));
-        pipe.position.set(-2.4+i*2.4, 2.6, 1.4); pipe.castShadow=true; dev.add(pipe);
+        pipe.position.set(-2.4+i*2.4, 2.6, 1.4); dev.add(pipe);
       }
       const hall=A(new THREE.Mesh(new THREE.BoxGeometry(6.4,2.6,3.4), matte(ART.city.wall[2])),0,1.3,3.4);
       const cool=A(new THREE.Mesh(new THREE.CylinderGeometry(1.5,2.0,3.6,9), matte(ART.shrine.stone2)),3.9,1.8,0.2);
@@ -134,7 +133,7 @@ function buildShrine(s){
     case 'bio': {
       for(let i=0;i<2;i++){
         const silo=new THREE.Mesh(new THREE.CylinderGeometry(1.5,1.5,4.4,10), matte(ART.city.wall[0]));
-        silo.position.set(-3.2+i*6.4, 2.2, -1.6); silo.castShadow=true; dev.add(silo);
+        silo.position.set(-3.2+i*6.4, 2.2, -1.6); dev.add(silo);
         const top=new THREE.Mesh(new THREE.SphereGeometry(1.5,10,6,0,6.29,0,1.57), mat(0x9cc46a));
         top.position.set(-3.2+i*6.4, 4.4, -1.6); dev.add(top);
       }
@@ -156,13 +155,13 @@ function buildShrine(s){
       const cols=[0xf0a3a3,0x9fd6f0,0xffe08a,0xa8e6a3];
       for(let i=0;i<8;i++){
         const bag=new THREE.Mesh(new THREE.IcosahedronGeometry(0.62,0), mat(cols[i%4]));
-        bag.position.set(-5+ (i%4)*1.4, 0.6, 3.4+((i/4)|0)*1.5); bag.castShadow=true; dev.add(bag);
+        bag.position.set(-5+ (i%4)*1.4, 0.6, 3.4+((i/4)|0)*1.5); dev.add(bag);
       }
       break; }
     case 'h2': {
       for(let i=0;i<2;i++){
         const tank=new THREE.Mesh(new THREE.CylinderGeometry(1.25,1.25,4.2,10), mat(0xe3f4f7));
-        tank.position.set(-3+i*6, 2.1, 0); tank.castShadow=true; dev.add(tank);
+        tank.position.set(-3+i*6, 2.1, 0); dev.add(tank);
         const cap=new THREE.Mesh(new THREE.SphereGeometry(1.25,10,7), mat(0x4fd0e0)); cap.position.set(-3+i*6,4.2,0); dev.add(cap);
         for(let k=0;k<4;k++){
           const b=new THREE.Mesh(new THREE.SphereGeometry(0.24,6,5), new THREE.MeshBasicMaterial({color:0xbdf1f7}));
@@ -178,12 +177,12 @@ function buildShrine(s){
     case 'fc': {
       for(let i=0;i<5;i++){
         const plate=new THREE.Mesh(new THREE.BoxGeometry(4.6,0.5,3.0), mat(i%2? 0x7ae0a8 : 0xdfeee6));
-        plate.position.set(0, 0.6+i*0.62, 0); plate.castShadow=true; dev.add(plate);
+        plate.position.set(0, 0.6+i*0.62, 0); dev.add(plate);
       }
       const h2t=new THREE.Mesh(new THREE.CylinderGeometry(0.85,0.85,3.4,9), mat(0x4fd0e0));
-      h2t.position.set(-3.9,1.7,0); h2t.castShadow=true; dev.add(h2t);
+      h2t.position.set(-3.9,1.7,0); dev.add(h2t);
       const o2t=new THREE.Mesh(new THREE.CylinderGeometry(0.85,0.85,3.4,9), mat(0xa8d8ff));
-      o2t.position.set(3.9,1.7,0); o2t.castShadow=true; dev.add(o2t);
+      o2t.position.set(3.9,1.7,0); dev.add(o2t);
       for(let i=0;i<4;i++){
         const dp=new THREE.Mesh(new THREE.SphereGeometry(0.3,7,6), new THREE.MeshBasicMaterial({color:0x9fe8ff}));
         dp.position.set(0.4+i*0.4, 4.2, 2.2); dev.add(dp); flow.push({m:dp,amp:-1.5,spd:1.3+i*0.4,rise:true});
@@ -203,6 +202,7 @@ const player = makeHumanoid({cloth:ART.player.tunic, pants:ART.player.pants,
 player.g.position.set(0, hAt(0,7), 7);
 scene.add(player.g);
 const P = { pos:player.g.position, vy:0, onGround:true, yaw:0, walk:0, speed:0 };
+const playerShadow = blobShadow(2.5); scene.add(playerShadow);
 
 /* NPC */
 const npcObjs=[];
@@ -221,6 +221,7 @@ NPCS.forEach(n=>{
   lb.position.y=3.7; lb.scale.set(0.175,0.055,1); h.g.add(lb);
   const mark=new THREE.Mesh(new THREE.OctahedronGeometry(0.3,0), new THREE.MeshBasicMaterial({color:0xffd24a}));
   mark.position.y=3.15; h.g.add(mark);
+  const bs=blobShadow(2.3); bs.position.y=0.04; h.g.add(bs);
   scene.add(h.g);
   npcObjs.push({data:n, h, mark, y});
 });
@@ -240,6 +241,25 @@ const sparks=[];
   }
 })();
 
+/* ══════════════ 숨은 고대 룬 조각 ══════════════ */
+/* 조명을 쓰지 않는다 — 값싼 발광 재질과 링만으로 눈에 띄게 한다. */
+const runeObjs = RUNES.map(r=>{
+  const g=new THREE.Group();
+  const gy=hAt(r.x, r.z);
+  g.position.set(r.x, gy, r.z);
+  const core=new THREE.Mesh(new THREE.TetrahedronGeometry(0.62,0),
+    new THREE.MeshBasicMaterial({color:0xb9f0ff}));
+  core.position.y=1.5; g.add(core);
+  const halo=new THREE.Mesh(new THREE.TetrahedronGeometry(1.15,0),
+    glow(0x7fd8ff,{transparent:true, opacity:0.30}));
+  halo.position.y=1.5; g.add(halo);
+  const ring=new THREE.Mesh(new THREE.TorusGeometry(1.5,0.09,5,22),
+    new THREE.MeshBasicMaterial({color:0x9fe6ff, transparent:true, opacity:0.55}));
+  ring.rotation.x=Math.PI/2; ring.position.y=0.16; g.add(ring);
+  g.visible=false; scene.add(g);
+  return {data:r, g, core, halo, ring, gy};
+});
+
 /* ══════════════ 마지막 시련 — 에너지 관제 콘솔 ══════════════ */
 /* 코어 10개를 모으면 도시 광장 중앙 전력탑 앞에 나타난다. */
 const finalConsole = (function(){
@@ -247,13 +267,13 @@ const finalConsole = (function(){
   const gy=hAt(FINAL.x,FINAL.z);
   g.position.set(FINAL.x, gy, FINAL.z);
   const base=new THREE.Mesh(new THREE.CylinderGeometry(2.3,2.7,0.5,8), matte(C.stone));
-  base.position.y=0.25; base.receiveShadow=true; g.add(base);
+  base.position.y=0.25; g.add(base);
   for(let i=0;i<2;i++){
     const lg=new THREE.Mesh(new THREE.CylinderGeometry(0.2,0.26,1.6,6), matte(C.wood));
-    lg.position.set(-1.1+i*2.2,1.3,0); lg.castShadow=true; g.add(lg);
+    lg.position.set(-1.1+i*2.2,1.3,0); g.add(lg);
   }
   const desk=new THREE.Mesh(new THREE.BoxGeometry(3.6,0.34,1.7), matte(C.stone));
-  desk.position.y=2.2; desk.castShadow=true; g.add(desk);
+  desk.position.y=2.2; g.add(desk);
   const board=new THREE.Mesh(new THREE.PlaneGeometry(3.3,2.0),
     new THREE.MeshBasicMaterial({color:0x16283f,transparent:true,opacity:0.78,side:THREE.DoubleSide}));
   board.position.set(0,3.4,-0.34); board.rotation.x=-0.24; g.add(board);
