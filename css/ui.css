@@ -217,13 +217,34 @@ input[type=range]::-moz-range-thumb{width:20px;height:20px;border-radius:50%;bac
 #ending p{color:#c9dced;font-size:15px;line-height:1.85;margin-bottom:22px}
 #ending .sum{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-bottom:24px}
 #ending .sum span{font-size:12.5px;font-weight:800;color:#0d1524;background:#ffe08a;border-radius:9px;padding:6px 11px}
-#help{position:fixed;inset:0;z-index:55;display:none;place-items:center;background:rgba(9,17,30,.8);backdrop-filter:blur(5px)}
+#help{position:fixed;inset:0;z-index:55;display:none;place-items:center;background:rgba(9,17,30,.8);backdrop-filter:blur(5px);padding:14px}
 #help.on{display:grid}
-#help .panel{width:min(560px,92vw);padding:22px 24px}
-#help h3{font-family:var(--disp);font-size:20px;margin-bottom:12px}
+/* 내용이 길어도 화면 밖으로 넘치지 않게 — 가운데 영역만 스크롤된다 */
+#help .panel{width:min(560px,94vw);max-height:min(88vh,760px);padding:0;display:flex;flex-direction:column;overflow:hidden}
+.helpHead{flex:0 0 auto;display:flex;align-items:center;justify-content:space-between;gap:10px;
+  padding:16px 20px 12px;border-bottom:1px dashed var(--line)}
+.helpBody{flex:1 1 auto;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:14px 20px 4px}
+.helpFoot{position:relative;flex:0 0 auto;text-align:right;padding:12px 20px 16px;border-top:1px dashed var(--line)}
+/* 아래에 내용이 더 있다는 신호 — 스크롤 영역 끝을 살짝 흐린다 */
+.helpFoot::before{content:'';position:absolute;left:2px;right:2px;top:-28px;height:28px;pointer-events:none;
+  background:linear-gradient(to top, var(--paper), rgba(246,241,228,0))}
+.helpBody::-webkit-scrollbar{width:9px}
+.helpBody::-webkit-scrollbar-thumb{background:#d8ceb6;border-radius:9px;border:2px solid transparent;background-clip:content-box}
+.helpBody::-webkit-scrollbar-track{background:transparent}
+.helpBody{scrollbar-width:thin;scrollbar-color:#d8ceb6 transparent}
+.helpClose{width:34px;height:34px;flex:0 0 auto;border-radius:10px;border:2px solid var(--line);
+  background:#f6f1e4;font-size:15px;font-weight:900;line-height:1;cursor:pointer;color:var(--ink);font-family:var(--body)}
+.helpClose:hover{border-color:#1b2b3d;background:#fff8e6}
+#help h3{font-family:var(--disp);font-size:20px;margin:0}
+#help h4{font-size:14px;font-weight:900;margin:16px 0 8px}
 #help table{width:100%;border-collapse:collapse;font-size:13.5px}
-#help td{padding:7px 4px;border-bottom:1px dashed var(--line)}
-#help td:first-child{font-family:var(--num);font-weight:800;width:112px;color:#c2691f}
+#help td{padding:7px 4px;border-bottom:1px dashed var(--line);vertical-align:top}
+#help td:first-child{font-family:var(--num);font-weight:800;width:104px;color:#c2691f;white-space:nowrap}
+.helpList{list-style:none;display:flex;flex-direction:column;gap:7px}
+.helpList li{font-size:12.5px;line-height:1.6;font-weight:600;color:#41566b;
+  background:#fffdf6;border:2px solid var(--line);border-radius:11px;padding:8px 11px}
+.helpList b{color:#1b2b3d;font-weight:900}
+@media (max-height:560px){ #help .panel{max-height:94vh} #help h3{font-size:17px} }
 
 /* ───────── 터치 컨트롤 (태블릿/모바일) ───────── */
 #touchUI{position:fixed;inset:0;z-index:30;display:none;pointer-events:none}

@@ -552,6 +552,7 @@ $('#startBtn').addEventListener('click', ()=>{
 $$('#monLv .chip').forEach((c,i)=>c.addEventListener('click',()=>setMonLevel(i)));
 setMonLevel(STATE.monLevel);
 $('#helpX').addEventListener('click',()=>$('#help').classList.remove('on'));
+$('#helpX2').addEventListener('click',()=>$('#help').classList.remove('on'));
 $('#help').addEventListener('click',e=>{ if(e.target.id==='help') $('#help').classList.remove('on'); });
 refreshHud(); updateCityLight(); animate();
 window.__gameReady = true;   // 여기까지 오면 시작 버튼이 정상 연결된 것
