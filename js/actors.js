@@ -241,23 +241,82 @@ const sparks=[];
   }
 })();
 
+/* ══════════════ 사당의 정령 ══════════════ */
+/* 사당 입구 옆(도시 쪽에서 비스듬히)에 떠 있다. 사당 상호작용 반경 밖이라
+   "사당 들어가기"와 "정령에게 말 걸기"가 서로 방해하지 않는다. */
+const spiritObjs = SHRINES.map(s=>{
+  const D = SPIRITS[s.id] || {role:'사당의 수호령', hello:['…'], done:['…']};
+  const who = (QUIZ_ASK[s.id] && QUIZ_ASK[s.id].who) || '사당의 정령';
+  /* 사당에서 도시를 바라보는 방향을 기준으로 옆쪽에 세운다 */
+  const toCity = Math.atan2(-s.z, -s.x);
+  let x = s.x, z = s.z;
+  for(const a of [SPIRIT_A, -SPIRIT_A, SPIRIT_A*2, -SPIRIT_A*2, 0]){
+    const nx = Math.round(s.x + Math.cos(toCity + a) * SPIRIT_R);
+    const nz = Math.round(s.z + Math.sin(toCity + a) * SPIRIT_R);
+    if(hBase(nx, nz) > 1.5){ x = nx; z = nz; break; }
+  }
+  const sp = makeSpirit(s.col, s.id);
+  const gy = hAt(x, z);
+  sp.g.position.set(x, gy + 1.9, z);
+  const lb = makeLabel(who, D.role, '#'+new THREE.Color(s.col).getHexString());
+  lb.position.y = 2.75; lb.scale.set(0.185, 0.058, 1); sp.g.add(lb);
+  const mark = new THREE.Mesh(new THREE.OctahedronGeometry(0.26,0),
+    new THREE.MeshBasicMaterial({color:0xffd24a}));
+  mark.position.y = 2.24; sp.g.add(mark);
+  sp.g.visible = false; scene.add(sp.g);
+  return {shrine:s, id:'sp_'+s.id, name:who, role:D.role, hello:D.hello, done:D.done,
+          sp, mark, x, z, gy, label:lb};
+});
+const spiritOf = {}; spiritObjs.forEach(o=>spiritOf[o.shrine.id]=o);
+
 /* ══════════════ 숨은 고대 룬 조각 ══════════════ */
-/* 조명을 쓰지 않는다 — 값싼 발광 재질과 링만으로 눈에 띄게 한다. */
+/* 조명을 쓰지 않는다 — 값싼 발광 재질만으로 눈에 띄게 한다.
+   안쪽 셸과 후광은 BackSide 로 그려 코어를 가리지 않고 테두리만 빛나게 한다. */
+const RUNE_GEO  = new THREE.OctahedronGeometry(0.52, 0);
+const RUNE_GEO2 = new THREE.OctahedronGeometry(0.72, 0);
+const RUNE_GEO3 = new THREE.OctahedronGeometry(1.02, 0);
 const runeObjs = RUNES.map(r=>{
   const g=new THREE.Group();
   const gy=hAt(r.x, r.z);
   g.position.set(r.x, gy, r.z);
-  const core=new THREE.Mesh(new THREE.TetrahedronGeometry(0.62,0),
-    new THREE.MeshBasicMaterial({color:0xb9f0ff}));
-  core.position.y=1.5; g.add(core);
-  const halo=new THREE.Mesh(new THREE.TetrahedronGeometry(1.15,0),
-    glow(0x7fd8ff,{transparent:true, opacity:0.30}));
-  halo.position.y=1.5; g.add(halo);
-  const ring=new THREE.Mesh(new THREE.TorusGeometry(1.5,0.09,5,22),
+
+  const spin=new THREE.Group(); spin.position.y=1.55; g.add(spin);
+
+  /* 코어 — 또렷한 하늘색 결정 */
+  const core=new THREE.Mesh(RUNE_GEO, new THREE.MeshBasicMaterial({color:0xeafaff}));
+  spin.add(core);
+  /* 안쪽 셸 — 테두리에만 색이 얹힌다 */
+  const shell=new THREE.Mesh(RUNE_GEO2, new THREE.MeshBasicMaterial({
+    color:0x4fc3ea, transparent:true, opacity:0.42, side:THREE.BackSide, depthWrite:false}));
+  spin.add(shell);
+  /* 바깥 후광 */
+  const halo=new THREE.Mesh(RUNE_GEO3, new THREE.MeshBasicMaterial({
+    color:0x9fe6ff, transparent:true, opacity:0.16, side:THREE.BackSide, depthWrite:false}));
+  spin.add(halo);
+
+  /* 결정 둘레를 도는 얇은 고리 (기울여서 회전) */
+  const orbit=new THREE.Mesh(new THREE.TorusGeometry(0.80,0.038,4,24),
+    new THREE.MeshBasicMaterial({color:0xd6f5ff, transparent:true, opacity:0.85}));
+  orbit.rotation.x=1.15; orbit.position.y=1.55; g.add(orbit);
+
+  /* 주위를 도는 작은 반짝임 3개 */
+  const motes=[];
+  for(let i=0;i<3;i++){
+    const m=new THREE.Mesh(new THREE.OctahedronGeometry(0.12,0),
+      new THREE.MeshBasicMaterial({color:0xffffff}));
+    g.add(m); motes.push(m);
+  }
+
+  /* 바닥 룬 원 — 얇은 고리 두 겹 */
+  const ring=new THREE.Mesh(new THREE.TorusGeometry(1.20,0.062,5,24),
     new THREE.MeshBasicMaterial({color:0x9fe6ff, transparent:true, opacity:0.55}));
   ring.rotation.x=Math.PI/2; ring.position.y=0.16; g.add(ring);
+  const ring2=new THREE.Mesh(new THREE.TorusGeometry(0.76,0.034,4,18),
+    new THREE.MeshBasicMaterial({color:0xd6f5ff, transparent:true, opacity:0.45}));
+  ring2.rotation.x=Math.PI/2; ring2.position.y=0.14; g.add(ring2);
+
   g.visible=false; scene.add(g);
-  return {data:r, g, core, halo, ring, gy};
+  return {data:r, g, spin, core, shell, halo, orbit, motes, ring, ring2, gy};
 });
 
 /* ══════════════ 마지막 시련 — 에너지 관제 콘솔 ══════════════ */

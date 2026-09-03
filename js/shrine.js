@@ -126,9 +126,12 @@ function showQuiz(api){
   const q=QUIZ[api.s.id], ctrl=$('#shCtrl');
   const A=QUIZ_ASK[api.s.id] || {who:'사당의 정령', face:api.s.icon, lead:'마지막으로 하나만 물어봐도 될까?', wrong:'다시 한 번 생각해 보렴.', right:'그래, 바로 그거야.'};
 
+  const por = (typeof spiritPortrait==='function') ? spiritPortrait(api.s.id) : '';
+  const FACE = por ? '<span class="face por" style="background:center/contain no-repeat url('+por+')"></span>'
+                   : '<span class="face">'+A.face+'</span>';
   const d=document.createElement('div'); d.className='quizBox askBox';
   d.innerHTML =
-    '<div class="askWho"><span class="face">'+A.face+'</span><b>'+A.who+'</b><i>이(가) 말을 건다</i></div>'+
+    '<div class="askWho">'+FACE+'<b>'+A.who+'</b><i>이(가) 말을 건다</i></div>'+
     '<div class="askLead">'+A.lead+'</div>'+
     '<div class="q askQ">'+q.q+'</div>'+
     '<div class="askYou">나의 대답</div>';
@@ -145,7 +148,7 @@ function showQuiz(api){
         b.classList.add('ok'); d.dataset.done='1';
         btns.forEach(o=>{ if(o!==b) o.disabled=true; });
         react.className='askReact ok'; react.style.display='block';
-        react.innerHTML='<span class="face">'+A.face+'</span><span>'+A.right+'</span>';
+        react.innerHTML=FACE+'<span>'+A.right+'</span>';
         ex.style.display='block';
         setTimeout(scrollShrineTop, 320);            /* 정답 → 화면을 위로 */
         setTimeout(()=>clearShrine(api.s), 1300);
@@ -153,7 +156,7 @@ function showQuiz(api){
         tries++;
         b.classList.add('no'); b.disabled=true;
         react.className='askReact no'; react.style.display='block';
-        react.innerHTML='<span class="face">'+A.face+'</span><span>'+A.wrong+'</span>';
+        react.innerHTML=FACE+'<span>'+A.wrong+'</span>';
         /* 두 번 틀리면 배움 노트를 다시 펼쳐 준다 (답은 알려주지 않는다) */
         if(tries>=2){
           react.innerHTML += '<div class="askNote">📘 '+api.s.note+'</div>';
@@ -167,9 +170,11 @@ function showQuiz(api){
 }
 
 /* 클리어 */
+let justCleared = null;
 function clearShrine(s){
   if(s.final) return clearFinal(s);
   const first = !STATE.cores[s.id];
+  justCleared = first ? s.id : null;   /* 나가면 그 사당의 정령이 축하해 준다 */
   STATE.cores[s.id]=true; STATE.hp=3; STATE.inv=2; save(); refreshHud(); updateCityLight();
   $('#clearIcon').textContent='💠';
   $('#clearTitle').textContent = first ? s.short+' 에너지 코어 획득!' : '시련을 다시 완수했다';
@@ -194,12 +199,19 @@ function clearFinal(s){
 }
 $('#clearBtn').onclick=()=>{
   const wasFinal = !!(curShrine && curShrine.final);
+  const sid = justCleared; justCleared = null;
   closeShrine();
   if(wasFinal){ setTimeout(showFinalEnding,600); return; }
   if(coreCount()>=10) setTimeout(showEnding,600);
-  else { const left=10-coreCount();
+  else {
+    const left=10-coreCount();
     setQuest('열 개의 사당을 깨워라','남은 사당 <b>'+left+'곳</b>을 찾아 코어를 모으자.');
-    toast('💠','에너지 코어 획득! 도시 전력 '+(coreCount()*10)+'%',3000); }
+    toast('💠','에너지 코어 획득! 도시 전력 '+(coreCount()*10)+'%',3000);
+    /* 처음 깬 사당이면 밖에서 정령이 축하해 준다 */
+    if(sid && typeof spiritOf!=='undefined' && spiritOf[sid]){
+      setTimeout(()=>{ if(STATE.mode==='play') talkSpirit(spiritOf[sid]); }, 1400);
+    }
+  }
 };
 $('#shClose').onclick=()=>closeShrine();
 

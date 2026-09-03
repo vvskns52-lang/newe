@@ -3,14 +3,14 @@
    ═══════════════════════════════════════════════════ */
 /* ══════════════ 게임 상태 ══════════════ */
 const STATE = {
-  cores:{}, sparks:0, hintUsed:{}, talked:{}, started:false, hp:3, inv:0, heal:0, monLevel:2, finalDone:false, runes:{},
+  cores:{}, sparks:0, hintUsed:{}, talked:{}, started:false, hp:3, inv:0, heal:0, monLevel:2, finalDone:false, runes:{}, metSpirit:{},
   mode:'play',   // play | dialog | shrine | ending
   quest:{t:'빛의 도시로', b:'도시 광장의 시장 하람에게 말을 걸어 무슨 일이 벌어졌는지 들어보자.'}
 };
 try{ const sv=JSON.parse(localStorage.getItem('energyChronicle')||'null');
-     if(sv){ STATE.cores=sv.cores||{}; STATE.sparks=sv.sparks||0; STATE.talked=sv.talked||{}; STATE.finalDone=!!sv.finalDone; STATE.runes=sv.runes||{};
+     if(sv){ STATE.cores=sv.cores||{}; STATE.sparks=sv.sparks||0; STATE.talked=sv.talked||{}; STATE.finalDone=!!sv.finalDone; STATE.runes=sv.runes||{}; STATE.metSpirit=sv.metSpirit||{};
        if(sv.monLevel!==undefined && sv.mv===2) STATE.monLevel=sv.monLevel;   /* 밀도 기본값이 '적당히'로 바뀌어, 옛 저장값은 한 번만 무시한다 */ } }catch(e){}
-function save(){ try{ localStorage.setItem('energyChronicle', JSON.stringify({cores:STATE.cores,sparks:STATE.sparks,talked:STATE.talked,monLevel:STATE.monLevel, mv:2,finalDone:STATE.finalDone,runes:STATE.runes})); }catch(e){} }
+function save(){ try{ localStorage.setItem('energyChronicle', JSON.stringify({cores:STATE.cores,sparks:STATE.sparks,talked:STATE.talked,monLevel:STATE.monLevel, mv:2,finalDone:STATE.finalDone,runes:STATE.runes,metSpirit:STATE.metSpirit})); }catch(e){} }
 const coreCount = ()=>Object.keys(STATE.cores).length;
 const runeCount = ()=>Object.keys(STATE.runes).length;
 
@@ -157,16 +157,31 @@ function startDialog(npc){
   const lines = first ? npc.lines : (npc.after&&npc.after.length ? npc.after : npc.lines.slice(-2));
   dlg={npc, lines, i:0};
   STATE.mode='dialog';
-  $('#dgFace').textContent=npc.icon; $('#dgName').textContent=npc.name; $('#dgRole').textContent=npc.role;
+  const dgf=$('#dgFace');
+  if(npc.spiritOf && typeof spiritPortrait==='function'){
+    dgf.textContent=''; dgf.classList.add('por');
+    dgf.style.background='#fff center/contain no-repeat url('+spiritPortrait(npc.spiritOf)+')';
+  } else { dgf.classList.remove('por'); dgf.style.background=''; dgf.textContent=npc.icon; } $('#dgName').textContent=npc.name; $('#dgRole').textContent=npc.role;
   $('#dialog').classList.add('on'); $('#prompt').classList.remove('on');
   showLine();
 }
 function showLine(){ $('#dgSay').innerHTML = dlg.lines[dlg.i]; }
+/* 정령과의 대화 — 아직 시련을 안 깼으면 안내, 깼으면 축하 */
+function talkSpirit(sp, forced){
+  const done = !!STATE.cores[sp.shrine.id];
+  const lines = done ? sp.done : sp.hello;
+  startDialog({ id:sp.id, name:sp.name, role:sp.role, icon:sp.shrine.icon,
+                spiritOf:sp.shrine.id, lines, after:lines });
+  if(!STATE.metSpirit[sp.id]){ STATE.metSpirit[sp.id]=true; save(); }
+  sp.mark.visible = false;
+}
+
 function nextLine(){
   if(!dlg) return;
   dlg.i++;
   if(dlg.i>=dlg.lines.length){
     const id=dlg.npc.id;
+    if(dlg.npc.spiritOf){ endDialog(); return; }
     if(!STATE.talked[id]){
       STATE.talked[id]=true; save();
       if(id==='mayor'){ setQuest('열 개의 사당을 깨워라','섬 곳곳의 사당에서 발전 원리 시련을 풀고 <b>에너지 코어 10개</b>를 모으자. 지도(우측 하단)의 색 점이 사당이다.'); toast('📜','새 목표: 열 개의 사당을 깨워라'); }
@@ -189,6 +204,10 @@ function findNear(){
     const d=Math.hypot(p.x-n.data.x, p.z-n.data.z);
     if(d<6 && d<bd){ bd=d; best={type:'npc', n, d}; }
   }
+  for(const sp of spiritObjs){               // 사당의 정령
+    const d=Math.hypot(p.x-sp.x, p.z-sp.z);
+    if(d<SPIRIT_TALK && d<bd){ bd=d; best={type:'spirit', sp, d}; }
+  }
   if(coreCount()>=10){                       // 마지막 시련 — 에너지 관제탑
     const d=Math.hypot(p.x-FINAL.x, p.z-FINAL.z);
     if(d<8 && d<bd){ bd=d; best={type:'final', d}; }
@@ -198,6 +217,7 @@ function findNear(){
 function interact(){
   if(!nearTarget) return;
   if(nearTarget.type==='npc') startDialog(nearTarget.n.data);
+  else if(nearTarget.type==='spirit') talkSpirit(nearTarget.sp);
   else if(nearTarget.type==='final') openShrine(FINAL);
   else openShrine(nearTarget.s);
 }
@@ -359,11 +379,41 @@ function animate(){
       if(nearTarget){
         pr.classList.add('on');
         pr.querySelector('.txt').textContent =
-            nearTarget.type==='npc'   ? nearTarget.n.data.name+'와(과) 대화하기'
+            nearTarget.type==='spirit'? nearTarget.sp.name+'에게 말 걸기'
+          : nearTarget.type==='npc'   ? nearTarget.n.data.name+'와(과) 대화하기'
           : nearTarget.type==='final' ? (STATE.finalDone ? '에너지 관제탑 — 다시 설계해 보기' : '에너지 관제탑 — 하루 전력 설계 시작')
           : (STATE.cores[nearTarget.s.id] ? nearTarget.s.name+' 다시 들어가기 (클리어)' : nearTarget.s.name+' 시련 시작');
       } else pr.classList.remove('on');
     }
+    /* 사당의 정령 — 가까이 가면 나타나 플레이어를 바라본다 */
+    for(const o of spiritObjs){
+      const d=Math.hypot(o.x-P.pos.x, o.z-P.pos.z);
+      if(d>SPIRIT_SHOW){ if(o.sp.g.visible) o.sp.g.visible=false; continue; }
+      o.sp.g.visible=true;
+      const done=!!STATE.cores[o.shrine.id];
+      /* 떠다니기 */
+      o.sp.g.position.y = o.gy + 1.9 + Math.sin(t*1.5 + o.x*0.1)*0.22;
+      /* 플레이어를 바라본다 (가까울 때만) */
+      const face = Math.atan2(P.pos.x-o.x, P.pos.z-o.z);
+      o.sp.g.rotation.y = d<24 ? lerp(o.sp.g.rotation.y, face, 0.06) : o.sp.g.rotation.y + dt*0.25;
+      o.sp.crest.rotation.y += dt*(o.shrine.id==='wind'? 2.4 : 0.8);
+      o.sp.ring.rotation.z += dt*0.7;
+      o.sp.motes.forEach((m,k)=>{
+        const a2=t*1.5+k*Math.PI;
+        m.position.set(Math.cos(a2)*0.95, 0.30+Math.sin(a2*1.6)*0.4, Math.sin(a2)*0.95);
+      });
+      /* 시련을 깬 사당의 정령은 더 밝고, 아직이면 살짝 옅다 */
+      o.sp.bodyMat.opacity = done ? 0.96 : 0.86;
+      o.sp.aura.material.opacity = done ? 0.42 : 0.26;
+      /* 아직 말 안 걸어 본 정령 머리 위에 ! 표시 */
+      o.mark.visible = !STATE.metSpirit[o.id];
+      if(o.mark.visible) o.mark.position.y = 2.24 + Math.sin(t*3)*0.10;
+      /* 처음 다가오면 스스로 말을 건다 */
+      if(!STATE.metSpirit[o.id] && d<8.5 && STATE.mode==='play' && P.onGround){
+        talkSpirit(o);
+      }
+    }
+
     /* 숨은 룬 조각 — 가까이 가야 나타나고, 더 가까이 가면 줍는다 */
     for(const r of runeObjs){
       if(STATE.runes[r.data.id]){ r.g.visible=false; continue; }
@@ -371,13 +421,23 @@ function animate(){
       if(d>RUNE_SHOW){ r.g.visible=false; continue; }
       r.g.visible=true;
       const near=1-Math.min(1, (d-RUNE_TAKE)/(RUNE_SHOW-RUNE_TAKE));   /* 0 멀다 → 1 코앞 */
-      r.core.rotation.y+=dt*1.4; r.halo.rotation.y-=dt*0.9;
-      r.core.position.y = 1.5 + Math.sin(t*2.0)*0.22;
-      r.halo.position.y = r.core.position.y;
-      r.halo.material.opacity = 0.14 + near*0.34;
-      r.ring.material.opacity = 0.18 + near*0.55;
-      const sc = 0.8 + near*0.45;
-      r.ring.scale.set(sc,sc,sc);
+      const bob = Math.sin(t*1.8)*0.20;
+      r.spin.rotation.y += dt*0.9;  r.spin.rotation.x = Math.sin(t*0.7)*0.16;
+      r.spin.position.y = 1.55 + bob;
+      r.orbit.position.y = 1.55 + bob;
+      r.orbit.rotation.y += dt*1.6;
+      r.motes.forEach((m,k)=>{
+        const a2 = t*1.3 + k*2.094;
+        m.position.set(Math.cos(a2)*0.98, 1.55 + bob + Math.sin(a2*1.7)*0.38, Math.sin(a2)*0.98);
+        m.material.opacity = 1;
+      });
+      r.shell.material.opacity = 0.28 + near*0.26;
+      r.halo.material.opacity  = 0.08 + near*0.16;
+      r.orbit.material.opacity = 0.35 + near*0.5;
+      r.ring.material.opacity  = 0.18 + near*0.5;
+      r.ring2.material.opacity = 0.12 + near*0.4;
+      const sc = 0.85 + near*0.35;
+      r.ring.scale.set(sc,sc,sc); r.ring2.scale.set(sc,sc,sc);
       if(d<RUNE_TAKE){
         STATE.runes[r.data.id]=true; r.g.visible=false; save(); refreshHud();
         toast('🔷','고대 룬 조각 '+runeCount()+' / 10 &nbsp;<span style="color:#6d7f92;font-weight:700">(관제탑 설비 예산 +'+RUNE_BONUS+'억)</span>',2600);

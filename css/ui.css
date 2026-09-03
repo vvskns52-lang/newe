@@ -176,6 +176,8 @@ input[type=range]::-moz-range-thumb{width:20px;height:20px;border-radius:50%;bac
 /* ───────── 확인 문제 = 정령과의 대화 ───────── */
 .askBox{background:linear-gradient(180deg,#fffdf6,#fff6e2)}
 .askWho{display:flex;align-items:center;gap:8px;margin-bottom:9px}
+.face.por{background-size:contain;background-position:center;background-repeat:no-repeat;font-size:0}
+.askReact .face.por{width:26px;height:26px;display:inline-block}
 .askWho .face{font-size:26px;width:38px;height:38px;flex:0 0 auto;display:grid;place-items:center;
   border-radius:50%;background:#fff;border:2px solid var(--line);box-shadow:0 2px 0 rgba(0,0,0,.05)}
 .askWho b{font-size:14px;font-weight:900}

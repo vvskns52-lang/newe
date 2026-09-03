@@ -266,3 +266,179 @@ function makeMonsterBody(kind, r, color){
 
 /* 이전 코드 호환용 별칭 */
 const mat = matte;
+
+/* ══════════════════════════════════════════════════════════
+   사당의 정령 — 로우폴리 유령형 캐릭터
+   조명을 쓰지 않는다(MeshBasicMaterial). 그림자를 없앤 세계에서도
+   항상 또렷하고, 발광체처럼 보여 "정령"이라는 설정에도 맞는다.
+   ══════════════════════════════════════════════════════════ */
+const SP_GEO = {
+  head : new THREE.IcosahedronGeometry(0.62, 1),
+  tail : new THREE.ConeGeometry(0.50, 0.78, 7),
+  eye  : new THREE.SphereGeometry(0.088, 7, 6),
+  hi   : new THREE.SphereGeometry(0.036, 6, 5),
+  ring : new THREE.TorusGeometry(0.80, 0.035, 4, 22),
+  mote : new THREE.OctahedronGeometry(0.075, 0),
+  disc : new THREE.CylinderGeometry(0.26, 0.26, 0.07, 10),
+  cone : new THREE.ConeGeometry(0.20, 0.38, 7),
+  drop : new THREE.SphereGeometry(0.19, 8, 7),
+  blade: new THREE.BoxGeometry(0.30, 0.05, 0.10),
+  torus: new THREE.TorusGeometry(0.22, 0.05, 4, 16),
+  leaf : new THREE.SphereGeometry(0.17, 7, 6),
+  box  : new THREE.BoxGeometry(0.26, 0.34, 0.20),
+  wave : new THREE.TorusGeometry(0.20, 0.055, 4, 14, Math.PI),
+  smile: new THREE.TorusGeometry(0.105, 0.022, 4, 10, Math.PI*0.9),
+};
+
+/* 사당별 머리 위 문장(紋章) — 한눈에 어느 사당의 정령인지 알 수 있게 */
+function spiritCrest(kind, hex){
+  const g = new THREE.Group();
+  const M = c => new THREE.MeshBasicMaterial({color:c});
+  const light = new THREE.Color(hex).lerp(new THREE.Color(0xffffff), 0.45).getHex();
+  switch(kind){
+    case 'pv': {                                   // ☀️ 해 — 원반 + 광선
+      const d = new THREE.Mesh(SP_GEO.disc, M(light)); d.rotation.x = Math.PI/2; d.scale.set(1.35,1,1.35); g.add(d);
+      for(let i=0;i<4;i++){ const s=new THREE.Mesh(SP_GEO.mote, M(hex));
+        const a=i/4*Math.PI*2+0.78; s.position.set(Math.cos(a)*0.46, Math.sin(a)*0.46, 0); s.scale.setScalar(1.5); g.add(s); }
+      break; }
+    case 'st': {                                   // 🔥 불꽃
+      const c1=new THREE.Mesh(SP_GEO.cone, M(hex)); c1.position.y=0.14; g.add(c1);
+      const c2=new THREE.Mesh(SP_GEO.cone, M(light)); c2.scale.setScalar(0.55); c2.position.y=0.10; g.add(c2);
+      break; }
+    case 'wind': {                                 // 🌪️ 바람개비
+      for(let i=0;i<3;i++){ const b=new THREE.Mesh(SP_GEO.blade, M(i?light:hex));
+        b.rotation.z=i/3*Math.PI*2; b.position.set(Math.cos(i/3*Math.PI*2)*0.16, Math.sin(i/3*Math.PI*2)*0.16, 0); g.add(b); }
+      break; }
+    case 'hyd': {                                  // 💧 물방울
+      const d=new THREE.Mesh(SP_GEO.drop, M(light)); g.add(d);
+      const t=new THREE.Mesh(SP_GEO.cone, M(light)); t.scale.set(0.8,0.6,0.8); t.position.y=0.22; g.add(t);
+      break; }
+    case 'geo': {                                  // 🌋 화산
+      const c=new THREE.Mesh(SP_GEO.cone, M(hex)); c.scale.set(1.3,1,1.3); g.add(c);
+      const l=new THREE.Mesh(SP_GEO.mote, M(0xffd764)); l.position.y=0.22; g.add(l);
+      break; }
+    case 'oce': {                                  // 🌊 파도
+      const w=new THREE.Mesh(SP_GEO.wave, M(light)); w.rotation.z=Math.PI; g.add(w);
+      const w2=new THREE.Mesh(SP_GEO.wave, M(hex)); w2.scale.setScalar(0.6); w2.rotation.z=Math.PI; w2.position.y=-0.10; g.add(w2);
+      break; }
+    case 'bio': {                                  // 🌽 잎 두 장
+      [-1,1].forEach(s=>{ const l=new THREE.Mesh(SP_GEO.leaf, M(s>0?hex:light));
+        l.scale.set(1.5,0.6,0.9); l.position.set(s*0.17,0,0); l.rotation.z=s*0.5; g.add(l); });
+      break; }
+    case 'wst': {                                  // ♻️ 순환 고리
+      const t=new THREE.Mesh(SP_GEO.torus, M(light)); g.add(t);
+      for(let i=0;i<2;i++){ const s=new THREE.Mesh(SP_GEO.mote, M(hex));
+        const a=i*Math.PI; s.position.set(Math.cos(a)*0.22, Math.sin(a)*0.22, 0); g.add(s); }
+      break; }
+    case 'h2': {                                   // ⚛️ 원자
+      const n=new THREE.Mesh(SP_GEO.mote, M(light)); n.scale.setScalar(1.6); g.add(n);
+      [0.6,-0.6].forEach(r=>{ const t=new THREE.Mesh(SP_GEO.torus, M(hex));
+        t.scale.setScalar(1.25); t.rotation.y=r; g.add(t); });
+      break; }
+    default: {                                     // 🔋 전지
+      const b=new THREE.Mesh(SP_GEO.box, M(light)); g.add(b);
+      const c=new THREE.Mesh(SP_GEO.mote, M(hex)); c.position.y=0.21; g.add(c);
+    }
+  }
+  return g;
+}
+
+/* 정령 본체 — 몸통 하나에 꼬리·눈·문장을 붙인다 */
+function makeSpirit(hex, kind){
+  const g = new THREE.Group();
+  const col   = new THREE.Color(hex);
+  const pale  = col.clone().lerp(new THREE.Color(0xffffff), 0.12).getHex();
+  const paler = col.clone().lerp(new THREE.Color(0xffffff), 0.34).getHex();
+
+  /* 몸통 — 반투명한 옅은 색 */
+  const bodyMat = new THREE.MeshBasicMaterial({color:paler});   /* 불투명 — 파스텔 로우폴리와 어울린다 */
+  const head = new THREE.Mesh(SP_GEO.head, bodyMat); head.position.y = 0.34; g.add(head);
+  const tail = new THREE.Mesh(SP_GEO.tail, bodyMat); tail.position.y = -0.30; tail.rotation.x = Math.PI; g.add(tail);
+
+  /* 테두리 후광 — BackSide 라 안쪽을 가리지 않는다 */
+  const aura = new THREE.Mesh(SP_GEO.head, new THREE.MeshBasicMaterial({
+    color:pale, transparent:true, opacity:0.20, side:THREE.BackSide, depthWrite:false}));
+  aura.position.y = 0.34; aura.scale.setScalar(1.20); g.add(aura);
+
+  /* 눈 — 큰 검은 눈 + 하이라이트 (캐릭터와 같은 귀여운 인상) */
+  const eyeMat = new THREE.MeshBasicMaterial({color:0x22303f});
+  const hiMat  = new THREE.MeshBasicMaterial({color:0xffffff});
+  const eyes = [];
+  [-0.20, 0.20].forEach(x=>{
+    const e = new THREE.Mesh(SP_GEO.eye, eyeMat);
+    e.position.set(x, 0.42, 0.555); e.scale.set(1.15, 1.40, 0.7); g.add(e); eyes.push(e);
+    const h = new THREE.Mesh(SP_GEO.hi, hiMat);
+    h.position.set(x + 0.035, 0.455, 0.60); g.add(h); eyes.push(h);
+  });
+  /* 볼터치 */
+  [-0.36, 0.36].forEach(x=>{
+    const b = new THREE.Mesh(SP_GEO.hi, new THREE.MeshBasicMaterial({
+      color:0xff9fb0, transparent:true, opacity:0.55}));
+    b.position.set(x, 0.28, 0.45); b.scale.set(2.0, 1.3, 0.6); g.add(b);
+  });
+
+  /* 미소 — 호 하나 (메시 1개) */
+  const mouth=new THREE.Mesh(SP_GEO.smile, eyeMat);
+  mouth.position.set(0, 0.255, 0.575); mouth.rotation.z=Math.PI; g.add(mouth);
+
+  /* 머리 위 문장 */
+  const crest = spiritCrest(kind, hex);
+  crest.position.y = 1.48; crest.scale.setScalar(1.15); g.add(crest);
+
+  /* 허리 고리 + 주위를 도는 반짝임 */
+  const ring = new THREE.Mesh(SP_GEO.ring, new THREE.MeshBasicMaterial({
+    color:pale, transparent:true, opacity:0.55}));
+  ring.rotation.x = 1.30; g.add(ring);
+  const motes = [];
+  for(let i=0;i<2;i++){
+    const m = new THREE.Mesh(SP_GEO.mote, new THREE.MeshBasicMaterial({color:paler}));
+    g.add(m); motes.push(m);
+  }
+  g.scale.setScalar(1.32);
+  return {g, head, tail, aura, crest, ring, motes, bodyMat};
+}
+
+/* 대화창·확인문제에 쓰는 정령 초상화 — 3D 모델과 같은 디자인을 2D로 그린다.
+   (오프스크린 3D 렌더는 기기에 따라 실패할 수 있어 캔버스로 그린다) */
+const SP_PORTRAIT = {};
+function spiritPortrait(shrineId){
+  if(SP_PORTRAIT[shrineId]) return SP_PORTRAIT[shrineId];
+  const s = SH[shrineId]; if(!s) return '';
+  const S = 128, cv = document.createElement('canvas');
+  cv.width = cv.height = S*2; const g = cv.getContext('2d'); g.scale(2,2);
+  const col   = new THREE.Color(s.col);
+  const body  = '#'+col.clone().lerp(new THREE.Color(0xffffff), 0.34).getHexString();
+  const glowC = '#'+col.clone().lerp(new THREE.Color(0xffffff), 0.12).getHexString();
+
+  const cx = S/2, cy = S*0.56, r = S*0.29;
+  /* 후광 */
+  const gr = g.createRadialGradient(cx, cy, r*0.6, cx, cy, r*1.65);
+  gr.addColorStop(0, glowC+'55'); gr.addColorStop(1, glowC+'00');
+  g.fillStyle = gr; g.beginPath(); g.arc(cx, cy, r*1.65, 0, 6.283); g.fill();
+  /* 몸통 — 머리 원 + 아래로 뾰족한 꼬리 */
+  g.fillStyle = body;
+  g.beginPath();
+  g.moveTo(cx - r, cy);
+  g.arc(cx, cy, r, Math.PI, 0);
+  g.lineTo(cx + r*0.72, cy + r*0.55);
+  g.lineTo(cx, cy + r*1.5);
+  g.lineTo(cx - r*0.72, cy + r*0.55);
+  g.closePath(); g.fill();
+  /* 볼터치 */
+  g.fillStyle = 'rgba(255,150,170,.45)';
+  [-1,1].forEach(k=>{ g.beginPath(); g.ellipse(cx + k*r*0.62, cy + r*0.16, r*0.20, r*0.13, 0, 0, 6.283); g.fill(); });
+  /* 눈 + 하이라이트 */
+  g.fillStyle = '#22303f';
+  [-1,1].forEach(k=>{ g.beginPath(); g.ellipse(cx + k*r*0.34, cy - r*0.10, r*0.155, r*0.20, 0, 0, 6.283); g.fill(); });
+  g.fillStyle = '#fff';
+  [-1,1].forEach(k=>{ g.beginPath(); g.arc(cx + k*r*0.34 + r*0.06, cy - r*0.18, r*0.058, 0, 6.283); g.fill(); });
+  /* 미소 */
+  g.strokeStyle = '#22303f'; g.lineWidth = r*0.09; g.lineCap='round';
+  g.beginPath(); g.arc(cx, cy + r*0.12, r*0.20, 0.25*Math.PI, 0.75*Math.PI); g.stroke();
+  /* 머리 위 문장 — 사당 아이콘 */
+  g.font = '900 '+Math.round(S*0.20)+'px "Gothic A1", sans-serif';
+  g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.fillText(s.icon, cx, cy - r*1.55);
+
+  return (SP_PORTRAIT[shrineId] = cv.toDataURL('image/png'));
+}
