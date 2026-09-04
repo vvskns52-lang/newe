@@ -28,7 +28,7 @@ function setMonLevel(i){
   document.querySelectorAll('#monLv .chip').forEach((c,k)=>c.classList.toggle('sel',k===i));
   const d=$('#monLvDesc'); if(d) d.textContent=MON_LEVELS[i].desc;
 }
-const SAFE_R = 24;                       // 빛의 도시 안전지대
+const SAFE_R = 32;                       // 빛의 도시 안전지대
 
 /* ── 오염 지대 (사당마다 하나, 사당을 깨우면 걷힌다) ── */
 (function buildZones(){
