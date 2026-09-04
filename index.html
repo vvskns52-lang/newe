@@ -21,7 +21,7 @@
     <div class="crest">🔆</div>
     <h1>에너지 <em>크로니클</em><br>빛을 되찾는 열 개의 사당</h1>
     <p>화석연료의 시대가 저물자 대륙의 불이 꺼졌다.<br>
-       여덟 지역에 잠든 <b>열 개의 발전 사당</b>을 깨워 에너지 코어를 모으고,<br>
+       섬 곳곳에 잠든 <b>열 개의 발전 사당</b>을 깨워 에너지 코어를 모으고,<br>
        중앙의 <b>빛의 도시</b>에 다시 전기를 밝혀라.</p>
     <div class="keys">
       <span class="kcap"><b>W A S D</b> 이동</span>
@@ -67,10 +67,7 @@
     <h4 id="qTitle">빛의 도시로</h4>
     <p id="qBody">도시 광장의 시장에게 말을 걸어 무슨 일이 벌어졌는지 들어보자.</p>
   </div>
-  <div id="minimap"><canvas id="mmCv" width="356" height="356"></canvas>
-    <div id="warpPanel"><div class="warpHead">✨ 빠른 이동 <small>깨운 사당으로 바로 갑니다</small></div>
-      <div id="warpList"></div></div>
-  </div>
+  <div id="minimap"><canvas id="mmCv" width="356" height="356"></canvas></div>
   <div id="prompt" class="panel"><span class="ekey">E</span><span class="txt"></span></div>
   <div id="toast"></div>
   <div id="hint">H · 도움말 &nbsp;|&nbsp; M · 지도 확대 &nbsp;|&nbsp; 마우스 휠 · 줌</div>
@@ -159,8 +156,6 @@
       <li><b>🌫️ 오염 몬스터</b> — 정화의 빛(F)으로 물리칩니다. 코어가 많을수록 빛이 강해지고, 사당을 깨우면 그 지역의 오염이 걷힙니다.</li>
       <li><b>💚 체력</b> — 다하면 빛의 도시에서 깨어납니다. 진행 상황은 그대로예요.</li>
       <li><b>✨ 에너지 파편</b> — 3개를 모으면 사당 안에서 힌트를 한 번 쓸 수 있습니다.</li>
-      <li><b>🗺️ 여덟 지역</b> — 바람 언덕 · 물의 계곡 · 불의 분지 · 황금 들판 · 되살림 단지 · 수소 해안 · 햇빛 고원 · 조수 갯벌. 땅 색과 풍경, 세워진 구조물이 지역마다 다릅니다.</li>
-      <li><b>✨ 빠른 이동</b> — M으로 지도를 열면 이미 깨운 사당으로 바로 갈 수 있습니다. 아직 안 깬 사당으로는 못 가요 — 처음 가는 길은 직접 걸어야 합니다.</li>
       <li><b>👻 수호 정령</b> — 사당 입구 옆에 떠 있습니다. 처음 다가가면 먼저 말을 걸고, 시련을 깨면 축하해 줍니다. E로 다시 대화할 수 있어요.</li>
       <li><b>🔷 고대 룬</b> — 사당 뒤편에 하나씩 숨어 있습니다. 모을수록 관제탑 예산 +5억 (10개면 100 → 150억).</li>
       <li><b>💠 코어 10개</b> — 도시에 불이 켜지고, 광장에 <b>에너지 관제탑</b>(마지막 시련)이 열립니다.</li>
@@ -192,7 +187,6 @@
 <script src="js/audio.js"></script>
 <script src="js/art.js"></script>
 <script src="js/world.js"></script>
-<script src="js/regions.js"></script>
 <script src="js/actors.js"></script>
 <script src="js/monsters.js"></script>
 <script src="js/game.js"></script>

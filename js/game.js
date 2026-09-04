@@ -53,7 +53,7 @@ addEventListener('keydown', e=>{
   if(k==='h'&&STATE.mode!=='shrine'){ $('#help').classList.toggle('on'); }
   if(k==='k'){ AUDIO.init(); AUDIO.toggle(); refreshSnd(); }
   if(k==='escape'){ if(STATE.mode==='shrine') closeShrine(); else if(STATE.mode==='dialog') endDialog(); else $('#help').classList.remove('on'); }
-  if(k==='m'&&STATE.mode==='play'){ $('#minimap').classList.toggle('big'); resizeMinimap(); buildWarp(); }
+  if(k==='m'&&STATE.mode==='play'){ $('#minimap').classList.toggle('big'); resizeMinimap(); }
   if(k==='e'&&STATE.mode==='play'){ interact(); }
   if((k==='f')&&STATE.mode==='play'){ firePurify(); }
   if(k===' '){ if(STATE.mode==='dialog'){ e.preventDefault(); nextLine(); } }
@@ -227,21 +227,19 @@ function interact(){
 const mm=$('#mmCv'), mg=mm.getContext('2d');
 function resizeMinimap(){}
 function drawMinimap(){
-  const W=mm.width, H=mm.height, S=W/360;
+  const W=mm.width, H=mm.height, S=W/230;
   mg.clearRect(0,0,W,H);
   mg.fillStyle='#2b6f9e'; mg.fillRect(0,0,W,H);
   mg.save(); mg.translate(W/2,H/2);
   // 섬
-  mg.beginPath(); mg.arc(0,0,150*S,0,6.283); mg.fillStyle='#9ed177'; mg.fill();
-  mg.beginPath(); mg.arc(0,0,140*S,0,6.283); mg.fillStyle='#8ec96c'; mg.fill();
-  // 지역 — 각 지역의 땅 색으로 옅게 칠해 어디가 어디인지 보이게
-  BIOMES.forEach(b=>{
-    mg.beginPath(); mg.arc(b.cx*S, b.cz*S, b.r*0.95*S, 0, 6.283);
-    mg.fillStyle = '#'+('000000'+b.ground.toString(16)).slice(-6); mg.globalAlpha=0.55; mg.fill();
-    mg.globalAlpha=1;
-  });
+  mg.beginPath(); mg.arc(0,0,86*S,0,6.283); mg.fillStyle='#9ed177'; mg.fill();
+  mg.beginPath(); mg.arc(0,0,80*S,0,6.283); mg.fillStyle='#8ec96c'; mg.fill();
+  // 산
+  mg.fillStyle='rgba(150,140,120,.75)';
+  mg.beginPath(); mg.ellipse(10*S,-76*S,26*S,20*S,0,0,6.283); mg.fill();
+  mg.beginPath(); mg.ellipse(64*S,-54*S,15*S,13*S,0,0,6.283); mg.fill();
   // 도시
-  mg.beginPath(); mg.arc(0,0,26*S,0,6.283); mg.fillStyle='#e6d9b8'; mg.fill();
+  mg.beginPath(); mg.arc(0,0,17*S,0,6.283); mg.fillStyle='#e6d9b8'; mg.fill();
   mg.strokeStyle='#c7b48f'; mg.lineWidth=1.5; mg.stroke();
   // 오염 지대
   SHRINES.forEach(s=>{
@@ -308,7 +306,6 @@ function autoQuality(dt){
   }
 }
 
-const SPK = new THREE.Matrix4();   /* 인스턴스 행렬 계산용 임시 객체 */
 const clock=new THREE.Clock();
 let mmTick=0;
 function animate(){
@@ -327,7 +324,7 @@ function animate(){
       if(keys['d']||keys['arrowright'])ix+=1;
       if(TOUCH.mag>0.12){ ix+=TOUCH.x; iz+=TOUCH.z; }
     }
-    const run = (keys['shift']||TOUCH.run||TOUCH.mag>0.86)?2.05:1;   /* 섬이 넓어져 달리기를 조금 더 빠르게 */
+    const run = (keys['shift']||TOUCH.run||TOUCH.mag>0.86)?1.75:1;
     const len=Math.hypot(ix,iz);
     let moveX=0, moveZ=0;
     if(len>0){
@@ -337,7 +334,7 @@ function animate(){
       moveX = (ix*cy + iz*sy);
       moveZ = (iz*cy - ix*sy);
       P.yaw = Math.atan2(moveX, moveZ);
-      P.speed = lerp(P.speed, 11.2*run*Math.max(TOUCH.mag>0.12?TOUCH.mag:1,0.35), 0.2);
+      P.speed = lerp(P.speed, 9.4*run*Math.max(TOUCH.mag>0.12?TOUCH.mag:1,0.35), 0.2);
     } else P.speed = lerp(P.speed, 0, 0.28);
 
     if(P.speed>0.05){
@@ -450,50 +447,15 @@ function animate(){
       }
     }
 
-    /* 파편 수집 — 인스턴스 행렬을 매 프레임 갱신한다 (드로우콜 1개) */
-    for(let i=0;i<sparks.length;i++){
-      const sp=sparks[i];
-      if(sp.got){ SPK.makeScale(0,0,0); SPARK_MESH.setMatrixAt(i, SPK); continue; }
-      sp.rot += dt*1.6;
-      const y = sp.base + Math.sin(t*1.6+sp.ph)*0.36;
-      SPK.makeRotationY(sp.rot);
-      SPK.setPosition(sp.x, y, sp.z);
-      SPARK_MESH.setMatrixAt(i, SPK);
-      if(Math.hypot(sp.x-P.pos.x, sp.z-P.pos.z)<2.6 && Math.abs(y-P.pos.y)<4){
-        sp.got=true; STATE.sparks++; save(); refreshHud();
+    /* 파편 수집 */
+    for(const sp of sparks){
+      if(sp.got) continue;
+      sp.m.rotation.y+=dt*1.6; sp.m.rotation.x+=dt*0.8;
+      sp.m.position.y = sp.base + Math.sin(t*1.6+sp.ph)*0.36;
+      if(Math.hypot(sp.m.position.x-P.pos.x, sp.m.position.z-P.pos.z)<2.6 && Math.abs(sp.m.position.y-P.pos.y)<4){
+        sp.got=true; sp.m.visible=false; STATE.sparks++; save(); refreshHud();
         AUDIO.sfx('step');
         toast('✨','에너지 파편 +1 &nbsp;<span style="color:#6d7f92;font-weight:700">(3개 = 사당 힌트 1회)</span>',1700);
-      }
-    }
-    SPARK_MESH.instanceMatrix.needsUpdate = true;
-  }
-
-  /* 멀리 있는 것은 그리지 않는다 — 섬이 넓어지면서 한 화면에 들어오는 물체가
-     크게 늘었다. 사람·집처럼 가까이서만 의미 있는 것은 거리로 잘라 낸다. */
-  if(typeof cityHouses!=='undefined') cityHouses.visible = Math.hypot(P.pos.x,P.pos.z) < 95;
-  for(const n of npcObjs){
-    const dn = Math.hypot(n.data.x-P.pos.x, n.data.z-P.pos.z);
-    if(n.h.g.visible !== (dn < 125)) n.h.g.visible = dn < 125;
-  }
-
-  /* 지역의 잔 구조물(반사경·재활용 더미·증기 등)은 멀리서 감춘다.
-     큰 실루엣(풍차·창고·탱크·집열탑)은 길잡이라 항상 남긴다. */
-  if(typeof REGION_DETAIL!=='undefined'){
-    for(const d of REGION_DETAIL){
-      const vis = Math.hypot(d.x-P.pos.x, d.z-P.pos.z) < 210;
-      if(d.o.visible !== vis) d.o.visible = vis;
-    }
-  }
-
-  /* 지역 랜드마크 — 풍차가 돌고 증기·물이 흐른다 */
-  if(typeof REGION_SPIN!=='undefined'){
-    for(const o of REGION_SPIN) o.o.rotation[o.axis] += dt*o.spd;
-    for(const f of REGION_FLOW){
-      if(f.rise){
-        f.m.position.y += dt*f.spd;
-        if(f.m.position.y > f.base + f.amp*4){ f.m.position.y = f.base; }
-      } else {
-        f.m.position.y = f.base + Math.sin(t*f.spd)*f.amp;
       }
     }
   }
@@ -501,12 +463,6 @@ function animate(){
   /* 사당 연출 */
   for(const s of SHRINES){
     const o=shrineObjs[s.id], got=!!STATE.cores[s.id];
-    /* 섬이 넓어져 한 화면에 사당이 여러 개 들어온다.
-       멀리 있는 사당은 발전소 모형을 감춰 그리는 양을 줄인다.
-       (기둥·코어·이름표는 남겨서 길잡이 역할은 그대로) */
-    const dS = Math.hypot(s.x-P.pos.x, s.z-P.pos.z);
-    if(o.dev) o.dev.visible = dS < 105;
-    if(o.struct) o.struct.visible = dS < 190;
     o.core.rotation.y+=dt*0.9; o.core.rotation.x+=dt*0.4;
     o.halo.rotation.y-=dt*0.5;
     o.core.position.y = 5.6 + Math.sin(t*1.3)*0.22;
@@ -574,20 +530,7 @@ function animate(){
     wp.needsUpdate=true;
   }
   /* 구름 */
-  /* 구름 — 인스턴스 행렬 갱신 (드로우콜 1개) */
-  if(CLOUD_MESH){
-    for(let i=0;i<clouds.length;i++){
-      const c=clouds[i];
-      c.x += c.spd*dt; if(c.x > 250) c.x = -250;
-      for(let k=0;k<CLOUD_PER;k++){
-        const pt=c.parts[k];
-        SPK.makeScale(pt.s, pt.s*0.55, pt.s);
-        SPK.setPosition(c.x+pt.dx, c.y+pt.dy, c.z+pt.dz);
-        CLOUD_MESH.setMatrixAt(i*CLOUD_PER+k, SPK);
-      }
-    }
-    CLOUD_MESH.instanceMatrix.needsUpdate = true;
-  }
+  clouds.forEach(c=>{ c.position.x += c.userData.spd*dt; if(c.position.x>170) c.position.x=-170; });
 
   autoQuality(dt);
   mmTick++;
@@ -646,36 +589,6 @@ function armReset(btn){
     const sb=$('#startBtn'); if(sb) sb.textContent='이어서 하기';
   }
 })();
-/* ══════════════ 빠른 이동 ══════════════
-   섬이 넓어진 만큼, 이미 깬 사당 사이는 걸어 다니지 않아도 되게 한다.
-   아직 안 깬 사당으로는 갈 수 없다 — 처음 가는 길은 직접 걸어야 모험이 된다. */
-function buildWarp(){
-  const box = $('#warpList'); if(!box) return;
-  box.innerHTML = '';
-  const done = SHRINES.filter(s=>STATE.cores[s.id]);
-  if(!done.length){
-    box.innerHTML = '<div class="warpEmpty">아직 깨운 사당이 없습니다. 사당을 하나 깨우면 이곳에서 바로 이동할 수 있어요.</div>';
-    return;
-  }
-  const mk=(icon,label,sub,fn)=>{
-    const b=document.createElement('button'); b.className='warpBtn';
-    b.innerHTML='<span class="wi">'+icon+'</span><span class="wn">'+label+'<small>'+sub+'</small></span>';
-    b.onclick=fn; box.appendChild(b);
-  };
-  mk('🏙️','빛의 도시','광장 · 시장 하람', ()=>warpTo(0, 9));
-  done.forEach(s=>{
-    const b = (typeof biomeAt==='function') ? biomeAt(s.x,s.z).b : null;
-    mk(s.icon, s.name, (b?b.name+' · ':'')+s.ch+'차시', ()=>warpTo(s.x, s.z+11));
-  });
-}
-function warpTo(x,z){
-  P.pos.set(x, hAt(x,z), z); P.vy=0;
-  STATE.inv = Math.max(STATE.inv, 1.2);
-  $('#minimap').classList.remove('big'); resizeMinimap();
-  toast('✨','빠르게 이동했다', 1600);
-  AUDIO.sfx('step');
-}
-
 /* ══════════════ 소리 ══════════════ */
 function refreshSnd(){
   const b=$('#sndBtn'); if(!b) return;

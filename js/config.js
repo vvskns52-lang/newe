@@ -58,34 +58,34 @@ const rnd = (()=>{let s=20260901;return()=>{s=(s*1664525+1013904223)%4294967296;
 
 /* ───────── 사당(발전소) 정의 ───────── */
 const SHRINES = [
-  { id:'pv',   ch:1, name:'태양광 사당',   short:'태양광', icon:'☀️', col:0xf6b93b, x: -96, z: 80,
+  { id:'pv',   ch:1, name:'태양광 사당',   short:'태양광', icon:'☀️', col:0xf6b93b, x: 34, z: 58,
     sub:'1차시 · 빛(光)이 곧 전기가 되는 곳',
     note:'태양전지는 셀 → 모듈 → 어레이 순으로 커집니다. 빛(광자)이 반도체에 부딪히면 전자가 튀어나오는 광전효과가 전기의 정체입니다.' },
-  { id:'st',   ch:1, name:'태양열 사당',   short:'태양열', icon:'🔥', col:0xef7a5a, x: -78, z: 106,
+  { id:'st',   ch:1, name:'태양열 사당',   short:'태양열', icon:'🔥', col:0xef7a5a, x:-34, z: 40,
     sub:'1차시 · 빛을 모아 열(熱)로 바꾸는 곳',
     note:'반사경으로 햇빛을 한 점에 모아 물을 끓입니다. 태양광이 "빛 → 전기"라면 태양열은 "열 → 온수·난방·증기터빈"입니다.' },
-  { id:'wind', ch:2, name:'풍력 사당',     short:'풍력',   icon:'🌪️', col:0x5ad3c4, x: -124, z: -4,
+  { id:'wind', ch:2, name:'풍력 사당',     short:'풍력',   icon:'🌪️', col:0x5ad3c4, x:-72, z:-22,
     sub:'2차시 · 바람의 결을 읽는 곳',
     note:'시동 풍속 3m/s에서 돌기 시작해 정격 12m/s에서 최대 출력, 25m/s를 넘으면 날개를 지키려 스스로 멈춥니다.' },
-  { id:'hyd',  ch:2, name:'수력 사당',     short:'수력',   icon:'💧', col:0x5b9df9, x: 2, z: -110,
+  { id:'hyd',  ch:2, name:'수력 사당',     short:'수력',   icon:'💧', col:0x5b9df9, x:  8, z:-72,
     sub:'2차시 · 낙차와 저수의 계곡',
     note:'물의 낙차로 수차를 돌립니다. 밤의 남는 전기로 물을 퍼올렸다가 낮에 떨어뜨리는 양수발전은 "천연 물 배터리"입니다.' },
-  { id:'geo',  ch:2, name:'지열 사당',     short:'지열',   icon:'🌋', col:0xe8674f, x: 88, z: -62,
+  { id:'geo',  ch:2, name:'지열 사당',     short:'지열',   icon:'🌋', col:0xe8674f, x: 62, z:-52,
     sub:'2차시 · 땅속 불의 심장',
     note:'땅속 깊이 100m마다 약 3℃씩 올라갑니다. 날씨를 타지 않아 1년 365일 24시간 발전하는 것이 최대 강점입니다.' },
-  { id:'oce',  ch:2, name:'해양 사당',     short:'해양',   icon:'🌊', col:0x8f7ef0, x: -84, z: -88,
+  { id:'oce',  ch:2, name:'해양 사당',     short:'해양',   icon:'🌊', col:0x8f7ef0, x: -63, z: 19,
     sub:'2차시 · 밀물과 썰물의 관문',
     note:'조력은 방조제로 수위차를 만들고(시화호), 조류는 댐 없이 빠른 물살을 쓰며(울돌목), 파력은 파도로 공기를 밀어 터빈을 돌립니다.' },
-  { id:'bio',  ch:3, name:'바이오 사당',   short:'바이오', icon:'🌽', col:0x8dc63f, x: 116, z: 10,
+  { id:'bio',  ch:3, name:'바이오 사당',   short:'바이오', icon:'🌽', col:0x8dc63f, x: 78, z: 12,
     sub:'3차시 · 자라나는 연료의 들판',
     note:'액체(바이오에탄올)·기체(바이오가스)·고체(목재펠릿) 세 가지. 식물이 흡수한 CO₂만큼 되돌려주어 탄소중립에 가깝습니다.' },
-  { id:'wst',  ch:3, name:'폐기물 사당',   short:'폐기물', icon:'♻️', col:0xc58bd6, x: 86, z: 92,
+  { id:'wst',  ch:3, name:'폐기물 사당',   short:'폐기물', icon:'♻️', col:0xc58bd6, x:  59, z: 30,
     sub:'3차시 · 버려진 것이 다시 타오르는 곳',
     note:'쓰레기를 태운 열로 전기와 지역난방 온수를 만듭니다. 다이옥신을 막으려면 소각 온도를 850℃ 이상으로 유지해야 합니다.' },
-  { id:'h2',   ch:4, name:'수소 사당',     short:'수소',   icon:'⚛️', col:0x4fd0e0, x: -20, z: 120,
+  { id:'h2',   ch:4, name:'수소 사당',     short:'수소',   icon:'⚛️', col:0x4fd0e0, x:  -3, z: 66,
     sub:'4차시 · 물에서 태어나는 연료',
     note:'2H₂O → 2H₂ + O₂. 태양광·풍력 전기로 물을 쪼개 만든 수소가 탄소배출 없는 그린 수소입니다.' },
-  { id:'fc',   ch:4, name:'연료전지 사당', short:'연료전지',icon:'🔋', col:0x7ae0a8, x: 28, z: 118,
+  { id:'fc',   ch:4, name:'연료전지 사당', short:'연료전지',icon:'🔋', col:0x7ae0a8, x:  -8, z: 41,
     sub:'4차시 · 물만 남기는 발전기',
     note:'2H₂ + O₂ → 2H₂O + 전기. 물의 전기분해와 정반대 반응이며, 매연·소음이 거의 없어 도심 건물에 알맞습니다.' },
 ];
@@ -93,7 +93,7 @@ const SH = {}; SHRINES.forEach(s=>SH[s.id]=s);
 
 /* ───────── NPC 정의 ───────── */
 const NPCS = [
-  { id:'mayor', name:'시장 하람', role:'빛의 도시 시장', icon:'🎩', x: -11, z: -10, col:0xf4c04f,
+  { id:'mayor', name:'시장 하람', role:'빛의 도시 시장', icon:'🎩', x:-9, z: -8, col:0xf4c04f,
     lines:[
       '오, 드디어 오셨군요. 보시다시피 <em>도시의 불이 모두 꺼졌습니다</em>.',
       '오랫동안 우리는 석탄과 가스를 태워 전기를 얻었지요. 값은 쌌지만 <em>이산화탄소와 미세먼지</em>가 하늘을 덮었습니다.',
@@ -105,35 +105,35 @@ const NPCS = [
     after:['사당을 하나 깨울 때마다 그 지역을 덮은 오염이 걷힙니다. 광장 안은 안전하니 다치면 돌아오세요.',
            '북쪽 산에는 수력과 지열, 서쪽 바다에는 풍력과 해양, 동쪽 들판에는 바이오와 폐기물 사당이 있습니다.',
            '완벽한 에너지는 없습니다. 지형에 맞게 골고루 섞어 쓰는 <em>에너지 믹스</em>가 답이지요.'] },
-  { id:'sol', name:'기술자 유나', role:'태양전지 정비공', icon:'👩‍🔧', x: -52, z: 58, col:0xf6b93b,
+  { id:'sol', name:'기술자 유나', role:'태양전지 정비공', icon:'👩‍🔧', x: 22, z: 40, col:0xf6b93b,
     lines:[
       '태양광이랑 태양열, 헷갈리죠? 아주 간단해요.',
       '<em>태양광은 빛(光)</em>으로 곧장 전기를 만들고, <em>태양열은 열(熱)</em>로 물을 데워요.',
       '태양광의 비밀은 <em>광전효과</em>. 빛 알갱이(광자)가 반도체를 때리면 전자가 톡 튀어나와 회로를 흐르는 거예요.',
       '단점요? 밤에는 못 만들어요. 그래서 다른 발전과 섞어 써야 하죠.' ],
     after:['셀 → 모듈 → 어레이! 작은 셀을 여러 장 붙이면 모듈, 모듈을 모으면 어레이예요.'] },
-  { id:'sea', name:'뱃사람 도진', role:'서쪽 항구 어부', icon:'🧑‍✈️', x: -58, z: -56, col:0x8f7ef0,
+  { id:'sea', name:'뱃사람 도진', role:'서쪽 항구 어부', icon:'🧑‍✈️', x:-58, z: 26, col:0x8f7ef0,
     lines:[
       '바다는 하루 두 번 숨을 쉬지. 밀물과 썰물 말이야.',
       '방조제로 그 물을 가두면 <em>조력 발전</em>이 되네. 세계 최대가 우리 <em>안산 시화호</em>야.',
       '댐 없이 빠른 물살만 쓰는 건 <em>조류 발전</em>. <em>진도 울돌목</em>이 딱이지. 갯벌이 그대로 살아 있어.',
       '바다 위 바람은 장애물이 없어 세고 고르다네. <em>해상풍력</em>은 전남 신안이 유명하지.' ],
     after:['파도가 공기를 밀어 터빈을 돌리는 건 <em>파력 발전</em>. 제주 용수리에 있네.'] },
-  { id:'mt', name:'광부 세라', role:'북쪽 산악 지질조사원', icon:'⛏️', x: 6, z: -64, col:0xe8674f,
+  { id:'mt', name:'광부 세라', role:'북쪽 산악 지질조사원', icon:'⛏️', x: 26, z:-42, col:0xe8674f,
     lines:[
       '산에는 두 가지 힘이 잠들어 있어요. 물과 땅속 열.',
       '높은 곳의 물을 떨어뜨리면 <em>수력</em>. 낙차가 클수록 힘이 세죠. 소양강댐처럼요.',
       '밤에 남는 전기로 물을 산 위로 퍼올렸다가 낮에 떨어뜨리는 걸 <em>양수 발전</em>이라 해요. 천연 물 배터리죠.',
       '땅은 100m 내려갈 때마다 3℃씩 뜨거워져요. 그 열이 <em>지열 발전</em>이고, 날씨와 상관없이 24시간 돌아갑니다.' ],
     after:['아이슬란드는 지열로 나라 전기를 감당해요. 우리나라는 주로 냉난방에 쓰고요.'] },
-  { id:'farm', name:'농부 만식', role:'동쪽 들판 농장주', icon:'🧑‍🌾', x: 70, z: 10, col:0x8dc63f,
+  { id:'farm', name:'농부 만식', role:'동쪽 들판 농장주', icon:'🧑‍🌾', x: 56, z: 24, col:0x8dc63f,
     lines:[
       '우리 축사에서 나오는 분뇨, 그냥 버리면 골칫거리지만 발효시키면 <em>바이오 가스</em>가 되네.',
       '옥수수·사탕수수로는 <em>바이오 에탄올</em>, 톱밥을 눌러 굳히면 <em>목재 펠릿</em>이고.',
       '그런데 말이야… 사람이 먹을 옥수수를 자동차에 넣으면 <em>곡물값이 폭등</em>한다는 걱정도 커.',
       '그래도 식물이 자라며 빨아들인 만큼만 되돌려 놓으니 <em>탄소중립</em>에 가깝다는 게 큰 장점이지.' ],
     after:['쓰레기 소각장은 다들 반대하지. "우리 동네는 안 돼"—그게 <em>님비(NIMBY) 현상</em>일세.'] },
-  { id:'lab', name:'연구원 하늘', role:'수소 연구소', icon:'👨‍🔬', x: 2, z: 74, col:0x4fd0e0,
+  { id:'lab', name:'연구원 하늘', role:'수소 연구소', icon:'👨‍🔬', x:-22, z: 62, col:0x4fd0e0,
     lines:[
       '미래 에너지의 열쇠는 <em>수소</em>입니다. 우주에서 가장 흔한 원소죠.',
       '물에 전기를 흘리면 <em>2H₂O → 2H₂ + O₂</em>. 그 수소를 다시 산소와 반응시키면?',
@@ -292,100 +292,39 @@ const SPIRIT_R = 12.5, SPIRIT_A = 0.62, SPIRIT_SHOW = 26, SPIRIT_TALK = 4.6;
    각 사당의 "뒤편"에 하나씩 숨어 있다. 가까이 가야 모습을 드러낸다.
    모을수록 마지막 관제탑의 설비 예산이 늘어난다 (1개당 +5억). */
 const RUNES = [
-  {id:'pv',   x: -74, z:  93}, {id:'st',   x:-100, z:  94},
-  {id:'wind', x:-122, z: -29}, {id:'hyd',  x:   2, z:-131},
-  {id:'geo',  x: 108, z: -76}, {id:'oce',  x: -65, z:-105},
-  {id:'bio',  x: 121, z: -14}, {id:'wst',  x: 104, z:  74},
-  {id:'h2',   x: -45, z: 115}, {id:'fc',   x:   4, z: 123},
+  {id:'pv',   x: 17, z: 72}, {id:'st',   x:-48, z: 57},
+  {id:'wind', x:-74, z:  0}, {id:'hyd',  x: 30, z:-69},
+  {id:'geo',  x: 54, z:-70}, {id:'oce',  x:-60, z: 38},
+  {id:'bio',  x: 70, z: -9}, {id:'wst',  x: 74, z: 25},
+  {id:'h2',   x:-24, z: 71}, {id:'fc',   x:  4, z: 54},
 ];
 const RUNE_SHOW = 30;    /* 이 거리 안에 들어와야 빛나기 시작한다 */
 const RUNE_TAKE = 3.2;   /* 이 거리 안이면 줍는다 */
 const RUNE_BONUS = 5;    /* 룬 1개당 관제탑 예산 +5억 */
 
-/* ───────── 지역(바이옴) ─────────
-   섬을 여덟 구역으로 나누고, 각 구역에 그 에너지원다운 지형·색·초목을 준다.
-   cx,cz = 중심 · r = 영향 반경 · 색은 world.js 의 지형 채색이 쓴다. */
-const BIOMES = [
-  { id:'hydro', name:'물의 계곡',   r:56, cx:   0, cz:-118, tree:1.05, grass:0.7, rock:1.1,
-    ground:0x8fae86, rockC:0x9aa5ac, foliage:[0x5f8f63,0x4d7d55], desc:'수력' },
-  { id:'geo',   name:'불의 분지',   r:48, cx:  88, cz: -88, tree:0.0, grass:0.1, rock:2.2,
-    ground:0x7a6257, rockC:0x5d4c46, foliage:[0x6b5a4a],       desc:'지열' },
-  { id:'bio',   name:'황금 들판',   r:52, cx: 118, cz:   8, tree:0.9, grass:1.6, rock:0.5,
-    ground:0xc9c168, rockC:0xb0a98a, foliage:[0x93b84a,0xa8c25a], desc:'바이오' },
-  { id:'waste', name:'되살림 단지', r:46, cx:  86, cz:  92, tree:0.75, grass:0.6, rock:0.8,
-    ground:0x9fae9a, rockC:0x8e9490, foliage:[0x6f9a63],       desc:'폐기물' },
-  { id:'h2',    name:'수소 해안',   r:56, cx:   4, cz: 124, tree:0.5,grass:0.5, rock:0.7,
-    ground:0xbfd6cf, rockC:0xa9bcc0, foliage:[0x7fb9a0],       desc:'수소·연료전지' },
-  { id:'sun',   name:'햇빛 고원',   r:52, cx: -92, cz:  92, tree:0.0, grass:0.3, rock:1.3,
-    ground:0xd8bd7e, rockC:0xc2a978, foliage:[0x9fae5a],       desc:'태양광·태양열' },
-  { id:'wind',  name:'바람 언덕',   r:52, cx:-126, cz:  -4, tree:0.4,grass:2.4, rock:0.6,
-    ground:0x9ec97e, rockC:0xa3aca4, foliage:[0x6fa85f],       desc:'풍력' },
-  { id:'ocean', name:'조수 갯벌',   r:48, cx: -86, cz: -90, tree:0.0, grass:0.3, rock:1.4,
-    ground:0xa9a894, rockC:0x8b8d86, foliage:[0x7f9a72],       desc:'해양' },
-];
-const BIOME = {}; BIOMES.forEach(b=>BIOME[b.id]=b);
-
-/* 어느 지역에 얼마나 속하는지 — 부드럽게 섞이도록 가중치로 계산한다 */
-function biomeWeights(x,z){
-  const w = [];
-  let sum = 0;
-  for(const b of BIOMES){
-    const d = Math.hypot(x-b.cx, z-b.cz);
-    const v = Math.exp(-(d*d)/(2*b.r*b.r));
-    w.push(v); sum += v;
-  }
-  const city = Math.exp(-(x*x+z*z)/(2*46*46));      // 도시는 어느 지역에도 속하지 않는다
-  sum += city;
-  return {w, sum, city};
-}
-function biomeAt(x,z){
-  let best=null, bv=-1;
-  for(const b of BIOMES){
-    const d=Math.hypot(x-b.cx, z-b.cz), v=Math.exp(-(d*d)/(2*b.r*b.r));
-    if(v>bv){ bv=v; best=b; }
-  }
-  return {b:best, w:bv};
-}
-
-/* ───────── 지형 높이 함수 ─────────
-   섬 반지름을 104 → 162 로 넓혔다(면적 약 2.4배).
-   경사는 어디서든 걸어 오를 수 있어야 한다: 가우스 언덕의 최대 기울기는
-   높이/(σ·1.6487) 이므로, 이 값이 0.7 을 넘지 않도록 σ 를 잡았다. */
-const WORLD = 380, SEA = 0;
+/* ───────── 지형 높이 함수 ───────── */
+const WORLD = 240, SEA = 0;
 function gauss(dx,dz,s){ return Math.exp(-(dx*dx+dz*dz)/(2*s*s)); }
-/* 평평한 윗면을 가진 고원 */
-function mesa(x,z,cx,cz,h,r0,r1){
-  const d = Math.hypot(x-cx, z-cz);
-  return h * (1 - smooth(r0, r1, d));
-}
 function hBase(x,z){
   const r = Math.hypot(x,z);
-  let h = 10*Math.exp(-Math.pow(r/130,3));
-
-  h += 40*gauss(x-2,  z+128, 38);        // 북쪽 큰 산 (수력 계곡)
-  h += 16*gauss(x+34, z+112, 26);        // 그 서쪽 능선
-  h += 34*gauss(x-92, z+ 90, 30);        // 북동 화산 (지열)
-  h -= 13*gauss(x-92, z+ 90, 10);        // 분화구를 파낸다
-  h += mesa(x,z, -92, 92, 19, 16, 58);   // 남서 햇빛 고원 (평평한 윗면)
-  h += 20*gauss(x+126,z+  6, 34);        // 서쪽 바람 언덕
-  h +=  9*gauss(x+112,z+ 40, 20);        // 바람 언덕 곁가지
-  h += 11*gauss(x-116,z-  6, 32);        // 동쪽 황금 들판 (완만)
-  h +=  7*gauss(x- 86,z- 92, 26);        // 남동 되살림 단지
-  h +=  4*gauss(x-  4,z-124, 34);        // 남쪽 수소 해안 (거의 평지)
-  h -=  7*gauss(x+ 86,z+ 90, 30);        // 북서 갯벌 — 바다에 가깝게 낮춘다
-
-  h += 2.2*Math.sin(x*0.072)+1.9*Math.cos(z*0.063)+1.2*Math.sin((x+z)*0.035);
-  h -= 42*smooth(118,162,r);             // 해안선 → 바다
-  const c = Math.exp(-Math.pow(r/30,4)); // 도시 평지
+  let h = 9*Math.exp(-Math.pow(r/80,3));
+  h += 30*gauss(x-10,z+76,28);          // 북쪽 산맥 (수력 계곡)
+  h += 22*gauss(x-64,z+54,18);          // 북동 화산 (지열)
+  h += 13*gauss(x+74,z+24,24);          // 서쪽 해안 언덕 (풍력)
+  h +=  7*gauss(x-78,z-14,22);          // 동쪽 구릉 (바이오)
+  h +=  5*gauss(x+40,z-52,20);          // 남서 고원 (태양열)
+  h += 1.9*Math.sin(x*0.108)+1.7*Math.cos(z*0.094)+1.1*Math.sin((x+z)*0.052);
+  h -= 34*smooth(68,104,r);             // 해안선 → 바다
+  const c = Math.exp(-Math.pow(r/22,4)); // 도시 평지
   h = h*(1-c)+7.4*c;
   return h;
 }
 /* 사당이 바다에 잠기면 자동으로 안쪽으로 당겨 놓는다.
-   (지형을 손봐도 "접근 불가 사당"이 다시 생기지 않도록 하는 안전장치) */
+   (지형 함수를 손봐도 "접근 불가 사당"이 다시 생기지 않도록 하는 안전장치) */
 SHRINES.forEach(s=>{
   if(hBase(s.x, s.z) < 2){
     const a = Math.atan2(s.z, s.x);
-    for(let r = Math.hypot(s.x, s.z); r > 40; r -= 1){
+    for(let r = Math.hypot(s.x, s.z); r > 30; r -= 1){
       const x = Math.round(Math.cos(a)*r), z = Math.round(Math.sin(a)*r);
       if(hBase(x, z) >= 5){ s.x = x; s.z = z; break; }
     }
