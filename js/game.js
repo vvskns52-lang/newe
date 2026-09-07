@@ -368,6 +368,15 @@ addEventListener('wheel', e=>{ if(STATE.mode!=='play')return; CAM.tDist=clamp(CA
       else if(document.exitFullscreen){ const r=document.exitFullscreen(); if(r&&r.catch) r.catch(()=>{}); }
     }catch(err){}
   });
+  document.addEventListener('fullscreenchange', ()=>{
+    const fs = !!document.fullscreenElement;
+    const b = $('#fsBtn');
+    if(b){
+      b.classList.toggle('on', fs);
+      b.innerHTML = '⛶<small>' + (fs ? '창모드' : '전체') + '</small>';
+      b.title = fs ? '전체 화면 나가기' : '전체 화면';
+    }
+  });
   if(TOUCH_DEV){
     const tk=$('#touchKeys'); if(tk){ tk.style.display='flex'; }
     $$('#title .keys')[0].style.display='none';
@@ -969,8 +978,9 @@ function warpTo(x,z){
 /* ══════════════ 소리 ══════════════ */
 function refreshSnd(){
   const b=$('#sndBtn'); if(!b) return;
-  b.textContent = AUDIO.on ? '🔊' : '🔇';
+  b.innerHTML = (AUDIO.on ? '🔊' : '🔇') + '<small>소리</small>';
   b.classList.toggle('off', !AUDIO.on);
+  b.title = AUDIO.on ? '소리 끄기 (K)' : '소리 켜기 (K)';
   const r=$('#volRange'), l=$('#volLabel');
   if(r) r.value = Math.round(AUDIO.vol*100);
   if(l) l.textContent = AUDIO.on ? Math.round(AUDIO.vol*100)+'%' : '꺼짐';
