@@ -270,7 +270,8 @@ function clearBossHazard(){
 
 function hitBoss(customDmg){
   if(!BOSS.alive || !BOSS.open || BOSS.die > 0) return;
-  const dmg = (typeof customDmg === 'number' && customDmg > 0) ? customDmg : lightDmg();
+  const baseDmg = (typeof customDmg === 'number' && customDmg > 0) ? customDmg : lightDmg();
+  const dmg = baseDmg * 2; // 체력이 2배 빠르게 닳도록 피해량 2배 적용
   BOSS.hp -= dmg;
   BOSS.core.material.color.setHex(0xffffff);
   const cfg = BOSS_CONFIGS[(BOSS.currentStage || 1) - 1] || BOSS_CONFIGS[0];
