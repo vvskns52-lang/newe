@@ -101,30 +101,31 @@ function firePurify(){
   const isExplode = wLv >= 4;
   const range = lightRange();
 
-  /* 주변 살아있는 적 탐색 */
-  const candidates = [];
+  /* 주변 살아있는 적 탐색 (일반 몬스터 + 보스 통합) */
+  const allTargets = [];
   for(const m of MON.pool){
     if(!m.alive || m.die>0) continue;
     const d = Math.hypot(m.g.position.x-P.pos.x, m.g.position.z-P.pos.z);
-    if(d < range){ candidates.push({ tgt:m, dist:d, pos:m.g.position, isBoss:false }); }
+    if(d < range){ allTargets.push({ tgt:m, dist:d, pos:m.g.position, isBoss:false }); }
   }
-  candidates.sort((a,b)=> a.dist - b.dist);
 
-  /* 보스 우선 타겟팅 */
-  let bossTgt = null;
+  /* 보스 타겟 후보 추가 */
   if(typeof BOSS!=='undefined' && BOSS.alive && BOSS.die<=0){
     const db = Math.hypot(BOSS.g.position.x-P.pos.x, BOSS.g.position.z-P.pos.z);
-    if(db < range + 12){
-      bossTgt = { tgt:{g:BOSS.g, alive:true, die:0, __boss:true}, dist:db, pos:BOSS.g.position, isBoss:true };
+    if(db < range + 14){
+      // 핵이 열려 있으면 우선 순위를 높이기 위해 가중 거리 -8m 적용
+      const effDist = BOSS.open ? Math.max(0, db - 8) : db + 8;
+      allTargets.push({ tgt:{g:BOSS.g, alive:true, die:0, __boss:true}, dist:effDist, rawDist:db, pos:BOSS.g.position, isBoss:true });
     }
   }
 
+  /* 거리순(플레이어에게 가장 가까운 위험 대상 우선) 정렬 */
+  allTargets.sort((a,b)=> a.dist - b.dist);
+
   const fireList = [];
-  if(bossTgt){
-    for(let k=0; k<maxTargets; k++) fireList.push(bossTgt);
-  } else if(candidates.length > 0){
+  if(allTargets.length > 0){
     for(let k=0; k<maxTargets; k++){
-      fireList.push(candidates[k % candidates.length]);
+      fireList.push(allTargets[k % allTargets.length]);
     }
   }
 
@@ -289,7 +290,7 @@ function updateMonsters(dt, t){
     const dx=tp.x-bp.x, dy=tp.y-bp.y, dz=tp.z-bp.z, d=Math.hypot(dx,dy,dz);
     const step=36*dt;
     if(d<=step+0.6){
-      if(tg.__boss) hitBoss();
+      if(tg.__boss) hitBoss(b.dmg);
       else {
         hitMonster(tg, b.dmg);
         if(b.isExplode){
@@ -369,6 +370,10 @@ function downPlayer(){
   STATE.hp=maxPlayerHp(); STATE.inv=2.4; refreshHud();
   P.pos.set(0, hAt(0,7), 7); P.vy=0; CAM.tYaw=0;
   MON.pool.forEach(m=>{ m.alive=false; m.g.visible=false; m.shadow.visible=false; });
+  if(typeof BOSS!=='undefined' && BOSS.alive){
+    BOSS.hp = BOSS.maxHp;
+    if(typeof bossBar==='function') bossBar(true);
+  }
   const f=$('#downFlash'); f.classList.remove('on'); void f.offsetWidth; f.classList.add('on');
   toast('🌫️','오염에 쓰러져 빛의 도시에서 깨어났다 — 진행 상황은 그대로입니다', 4200);
 }

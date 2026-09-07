@@ -3,16 +3,16 @@
    ═══════════════════════════════════════════════════ */
 /* ══════════════ 게임 상태 ══════════════ */
 const STATE = {
-  cores:{}, sparks:0, hintUsed:{}, talked:{}, started:false, hp:3, inv:0, heal:0, monLevel:2, finalDone:false, runes:{}, metSpirit:{}, bossDone:false, bossPending:false,
+  cores:{}, sparks:0, hintUsed:{}, talked:{}, started:false, hp:3, inv:0, heal:0, monLevel:2, finalDone:false, runes:{}, metSpirit:{}, bossDone:false, bossPending:false, bossStage:0,
   upgrades:{ maxHp:0, lightPower:0, magnet:false, weaponLevel:1, rapidFire:false }, speedBoostEnd:0,
   mode:'play',   // play | dialog | shrine | ending
   quest:{t:'빛의 도시로', b:'도시 광장의 시장 하람에게 말을 걸어 무슨 일이 벌어졌는지 들어보자.'}
 };
 try{ const sv=JSON.parse(localStorage.getItem('energyChronicle')||'null');
-     if(sv){ STATE.cores=sv.cores||{}; STATE.sparks=sv.sparks||0; STATE.talked=sv.talked||{}; STATE.finalDone=!!sv.finalDone; STATE.runes=sv.runes||{}; STATE.metSpirit=sv.metSpirit||{}; STATE.bossDone=!!sv.bossDone; STATE.bossPending=!!sv.bossPending;
+     if(sv){ STATE.cores=sv.cores||{}; STATE.sparks=sv.sparks||0; STATE.talked=sv.talked||{}; STATE.finalDone=!!sv.finalDone; STATE.runes=sv.runes||{}; STATE.metSpirit=sv.metSpirit||{}; STATE.bossStage=sv.bossStage!==undefined?sv.bossStage:(sv.bossDone?3:0); STATE.bossDone=(STATE.bossStage>=3); STATE.bossPending=!!sv.bossPending;
        if(sv.upgrades) STATE.upgrades = Object.assign({ maxHp:0, lightPower:0, magnet:false, weaponLevel:1, rapidFire:false }, sv.upgrades);
        STATE.monLevel=2; } }catch(e){}
-function save(){ try{ localStorage.setItem('energyChronicle', JSON.stringify({cores:STATE.cores,sparks:STATE.sparks,talked:STATE.talked,monLevel:STATE.monLevel, mv:2,finalDone:STATE.finalDone,runes:STATE.runes,metSpirit:STATE.metSpirit,bossDone:STATE.bossDone,bossPending:STATE.bossPending,upgrades:STATE.upgrades})); }catch(e){} }
+function save(){ try{ localStorage.setItem('energyChronicle', JSON.stringify({cores:STATE.cores,sparks:STATE.sparks,talked:STATE.talked,monLevel:STATE.monLevel, mv:2,finalDone:STATE.finalDone,runes:STATE.runes,metSpirit:STATE.metSpirit,bossDone:STATE.bossDone,bossPending:STATE.bossPending,bossStage:STATE.bossStage,upgrades:STATE.upgrades})); }catch(e){} }
 const coreCount = ()=>Object.keys(STATE.cores).length;
 const runeCount = ()=>Object.keys(STATE.runes).length;
 
@@ -268,10 +268,12 @@ addEventListener('keydown', e=>{
   const k=e.key.toLowerCase();
   keys[k]=true;
   if(k==='h'&&STATE.mode!=='shrine'){ toggleHelp(); }
+  if(k==='j'&&STATE.mode!=='shrine'){ toggleArchive(); }
   if(k==='b'&&STATE.mode!=='shrine'){ toggleShop(); }
   if(k==='k'){ AUDIO.init(); AUDIO.toggle(); refreshSnd(); }
   if(k==='escape'){
-    if($('#sparkShop').classList.contains('on')) closeShop();
+    if($('#archive')&&$('#archive').classList.contains('on')) closeArchive();
+    else if($('#sparkShop').classList.contains('on')) closeShop();
     else if(STATE.mode==='shrine') closeShrine();
     else if(STATE.mode==='dialog') endDialog();
     else closeHelp();
@@ -385,24 +387,33 @@ addEventListener('wheel', e=>{ if(STATE.mode!=='play')return; CAM.tDist=clamp(CA
     $('#dialog .next').textContent='화면 탭 — 다음 ▶';
   }
 })();
-/* ── 도움말 · 지도 · 파편 교환소 여닫기 (키보드와 터치 버튼이 공유) ── */
+/* ── 도움말 · 지도 · 파편 교환소 · 지식 도감 여닫기 (키보드와 상단 버튼이 공유) ── */
 function syncPanelBtns(){
-  const h=$('#tHelp'), m=$('#tMap'), s=$('#tShop');
-  if(h) h.classList.toggle('on', $('#help').classList.contains('on'));
-  if(m) m.classList.toggle('on', $('#minimap').classList.contains('big'));
-  if(s) s.classList.toggle('on', $('#sparkShop').classList.contains('on'));
+  const h=$('#tHelp'), m=$('#tMap'), s=$('#tShop'), a=$('#tArchive');
+  if(h) h.classList.toggle('on', $('#help')&&$('#help').classList.contains('on'));
+  if(m) m.classList.toggle('on', $('#minimap')&&$('#minimap').classList.contains('big'));
+  if(s) s.classList.toggle('on', $('#sparkShop')&&$('#sparkShop').classList.contains('on'));
+  if(a) a.classList.toggle('on', $('#archive')&&$('#archive').classList.contains('on'));
 }
 function closeHelp(){ $('#help').classList.remove('on'); syncPanelBtns(); }
 function toggleHelp(){
   const on = !$('#help').classList.contains('on');
   $('#help').classList.toggle('on', on);
-  if(on){ $('#minimap').classList.remove('big'); $('#sparkShop').classList.remove('on'); }
+  if(on){
+    $('#minimap').classList.remove('big');
+    $('#sparkShop').classList.remove('on');
+    if($('#archive')) $('#archive').classList.remove('on');
+  }
   syncPanelBtns();
 }
 function toggleMap(){
   const mm=$('#minimap'), on = !mm.classList.contains('big');
   mm.classList.toggle('big', on);
-  if(on){ $('#help').classList.remove('on'); $('#sparkShop').classList.remove('on'); }
+  if(on){
+    $('#help').classList.remove('on');
+    $('#sparkShop').classList.remove('on');
+    if($('#archive')) $('#archive').classList.remove('on');
+  }
   resizeMinimap(); buildWarp(); syncPanelBtns();
 }
 (function initShopEvents(){
@@ -411,6 +422,104 @@ function toggleMap(){
   if(sx) sx.onclick = ()=> closeShop();
   if(sm) sm.onclick = e => { if(e.target === sm) closeShop(); };
   if(ts) ts.onclick = ()=> toggleShop();
+})();
+
+/* ───────── 신재생에너지 지식 도감 ───────── */
+let currentArchTab = 'all';
+function closeArchive(){
+  const ar = $('#archive');
+  if(ar) ar.classList.remove('on');
+  syncPanelBtns();
+}
+function toggleArchive(){
+  const ar = $('#archive');
+  if(!ar) return;
+  const on = !ar.classList.contains('on');
+  ar.classList.toggle('on', on);
+  if(on){
+    $('#help').classList.remove('on');
+    $('#minimap').classList.remove('big');
+    $('#sparkShop').classList.remove('on');
+    renderArchive(currentArchTab);
+  }
+  syncPanelBtns();
+}
+function renderArchive(filter='all'){
+  currentArchTab = filter;
+  const grid = $('#archGrid');
+  if(!grid || typeof ARCHIVE_DATA==='undefined') return;
+
+  const keys = Object.keys(ARCHIVE_DATA);
+  let unlockedCount = 0;
+  keys.forEach(k=>{
+    const unlocked = (k === 'mix') ? !!STATE.finalDone : !!STATE.cores[k];
+    if(unlocked) unlockedCount++;
+  });
+  const countEl = $('#archCount'), pctEl = $('#archPct'), barFill = $('#archBarFill');
+  if(countEl) countEl.textContent = unlockedCount + ' / ' + keys.length;
+  const pct = Math.round(unlockedCount / keys.length * 100);
+  if(pctEl) pctEl.textContent = pct + '%';
+  if(barFill) barFill.style.width = pct + '%';
+
+  $$('.archTab').forEach(tab=>{
+    tab.classList.toggle('on', tab.getAttribute('data-filter') === filter);
+  });
+
+  grid.innerHTML = '';
+  keys.forEach(k=>{
+    const data = ARCHIVE_DATA[k];
+    if(filter !== 'all' && data.ch !== filter) return;
+    const unlocked = (k === 'mix') ? !!STATE.finalDone : !!STATE.cores[k];
+
+    const card = document.createElement('div');
+    card.className = 'archCard ' + (unlocked ? 'unlocked' : 'locked');
+    if(unlocked){
+      card.innerHTML = `
+        <div class="archCardTop">
+          <div class="archCardHead">
+            <div class="archCardIcon" style="background:${data.color}22;border-color:${data.color}">${data.icon}</div>
+            <div>
+              <div class="archCardName">${data.title}<span class="archCardBadge">${data.ch}</span></div>
+              <div style="font-size:11.5px;color:#2b6cb0;font-weight:800">에너지 코어 획득 완료 ✨</div>
+            </div>
+          </div>
+        </div>
+        <div class="archCardSummary">${data.summary}</div>
+        <div class="archCardDetails">
+          <div class="archSec"><b>⚙️ 과학적 발전 원리</b>${data.principle}</div>
+          <div class="archSec"><b>👍 장점 & 이점</b>${data.pros}</div>
+          <div class="archSec"><b>⚠️ 극복 과제 및 한계</b>${data.cons}</div>
+          <div class="archSec"><b>🗺️ 교과서 속 실제 대표 지명</b>${data.caseStudy}</div>
+          <div class="archSec archKeyBox"><b>🎯 시험 출제 핵심 키워드</b>${data.examKey}</div>
+        </div>
+      `;
+    } else {
+      card.innerHTML = `
+        <div class="archCardTop">
+          <div class="archCardHead">
+            <div class="archCardIcon">🔒</div>
+            <div>
+              <div class="archCardName">${data.title}<span class="archCardBadge">${data.ch}</span></div>
+              <div class="archCardLockedMsg"><span>🔒 아직 잠겨 있습니다</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="archCardSummary" style="border-left-color:#cbd5e1;color:#64748b">
+          ${data.ch}의 사당 시련을 풀고 <b>에너지 코어</b>를 획득하면 이 지식 카드가 해금됩니다.
+        </div>
+      `;
+    }
+    grid.appendChild(card);
+  });
+}
+(function initArchiveEvents(){
+  const ta=$('#tArchive'), ax=$('#archX'), ar=$('#archive');
+  if(ta) ta.onclick = ()=> toggleArchive();
+  if(ax) ax.onclick = ()=> closeArchive();
+  if(ar) ar.onclick = e => { if(e.target === ar) closeArchive(); };
+  $$('.archTab').forEach(tab=>{
+    tab.onclick = ()=> renderArchive(tab.getAttribute('data-filter'));
+  });
 })();
 addEventListener('resize', ()=>{
   camera.aspect=innerWidth/innerHeight; camera.updateProjectionMatrix();
@@ -537,6 +646,14 @@ function drawMinimap(){
   });
   // NPC
   npcObjs.forEach(n=>{ mg.beginPath(); mg.arc(n.data.x*S,n.data.z*S,3.4,0,6.283); mg.fillStyle='#ffe08a'; mg.fill(); });
+  // 보스 위치
+  if(typeof BOSS!=='undefined' && BOSS.alive && BOSS.die<=0){
+    const bx = BOSS.g.position.x*S, bz = BOSS.g.position.z*S;
+    mg.beginPath(); mg.arc(bx, bz, 8, 0, 6.283);
+    mg.fillStyle='#e74c3c'; mg.fill(); mg.lineWidth=2; mg.strokeStyle='#ffffff'; mg.stroke();
+    mg.font='10px sans-serif'; mg.textAlign='center'; mg.textBaseline='middle';
+    mg.fillText('☠️', bx, bz);
+  }
   // 플레이어
   mg.save(); mg.translate(P.pos.x*S, P.pos.z*S); mg.rotate(Math.PI - P.yaw);
   mg.beginPath(); mg.moveTo(0,-9); mg.lineTo(6.4,7); mg.lineTo(0,3.6); mg.lineTo(-6.4,7); mg.closePath();
@@ -544,16 +661,23 @@ function drawMinimap(){
   mg.restore();
 }
 
-/* ══════════════ 도시 점등 ══════════════ */
+/* ══════════════ 도시 점등 및 단계별 인프라 복구 ══════════════ */
 function updateCityLight(){
-  const t = coreCount()/10;
-  CITY.beaconMat.color.setHSL(0.12, 0.85, 0.16+0.42*t);
-  CITY.bLight.intensity = 1.3*t;
+  const count = coreCount();
+  const t = count/10;
+  if(CITY.beaconMat) CITY.beaconMat.color.setHSL(0.12, 0.85, 0.16+0.42*t);
+  if(CITY.bLight) CITY.bLight.intensity = 1.3*t;
   cityLights.forEach((o,i)=>{
     const on = i/cityLights.length < t*1.05;
     if(o.isLight) o.intensity = on? 0.5 : 0;
     else o.color.set(on? 0xffdd93 : 0x3b4a5c);
   });
+
+  /* 3D 인프라 단계별 활성화 (가로등, 스마트팜, 분수대, 빛의 기둥) */
+  if(CITY.lanterns)    CITY.lanterns.visible    = (count >= 2);
+  if(CITY.smartFarm)   CITY.smartFarm.visible   = (count >= 5);
+  if(CITY.fountain)    CITY.fountain.visible    = (count >= 8);
+  if(CITY.lightPillar) CITY.lightPillar.visible = (count >= 10);
 }
 
 /* ══════════════ 루프 ══════════════ */
@@ -765,6 +889,25 @@ function animate(){
           STATE.speedBoostEnd = 0;
         }
       }
+    }
+  }
+
+  /* 빛의 도시 인프라 애니메이션 (분수대 & 빛의 기둥) */
+  if(window.CITY){
+    if(CITY.fountain && CITY.fountain.visible){
+      if(CITY.fSpout) CITY.fSpout.rotation.y += dt * 1.5;
+      if(CITY.fDrops){
+        CITY.fDrops.forEach((d, idx)=>{
+          const seed = t * 3.5 + idx * 0.45;
+          const r = 0.6 + Math.sin(seed * 0.8) * 1.5;
+          const angle = idx * (Math.PI * 2 / CITY.fDrops.length) + t * 0.6;
+          const dy = Math.sin(seed) * 1.6;
+          d.position.set(Math.cos(angle)*r, CITY.gy + 2.5 + Math.max(0, dy), Math.sin(angle)*r);
+        });
+      }
+    }
+    if(CITY.lightPillar && CITY.lightPillar.visible){
+      CITY.lightPillar.rotation.y += dt * 0.4;
     }
   }
 

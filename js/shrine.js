@@ -61,8 +61,8 @@ function makeApi(s){
   api.holdT = {};
   api.hold = (i, ok, dt, sec)=>{
     if(api.doneSteps.has(i) || api.locked) return 1;
-    sec = sec || 2.0;
-    const cur = clamp((api.holdT[i]||0) + (ok ? dt : -dt*1.8), 0, sec);
+    sec = (sec || 2.0) * 1.4;
+    const cur = clamp((api.holdT[i]||0) + (ok ? dt : -dt*3.0), 0, sec);
     api.holdT[i] = cur;
     const e = api.stepEls[i];
     if(e){
@@ -122,53 +122,121 @@ function scrollShrineTop(){
   });
 }
 
-/* 확인 문제 — 사당의 정령이 "물어보는" 대화 형식 */
+/* 확인 문제 — 사당의 정령이 "물어보는" 대화 형식 (3회 실패 시 재도전) */
+/* 확인 문제 — 사당의 정령이 연속으로 물어보는 시련 (총 3문제, 3회 실패 시 재도전) */
 function showQuiz(api){
-  const q=QUIZ[api.s.id], ctrl=$('#shCtrl');
-  const A=QUIZ_ASK[api.s.id] || {who:'사당의 정령', face:api.s.icon, lead:'마지막으로 하나만 물어봐도 될까?', wrong:'다시 한 번 생각해 보렴.', right:'그래, 바로 그거야.'};
+  const rawQ = QUIZ[api.s.id];
+  const qList = Array.isArray(rawQ) ? rawQ : [rawQ];
+  const totalQ = qList.length;
+  let qIdx = 0;
+
+  const defaultAsk = {who:'사당의 정령', face:api.s.icon, lead:'배운 원리를 제대로 이해했는지 확인해 보마.', wrong:'다시 한 번 곰곰이 생각해 보렴.', right:'그래, 바로 그거야!'};
+  const A = (typeof QUIZ_ASK!=='undefined' && QUIZ_ASK[api.s.id]) || defaultAsk;
 
   const por = (typeof spiritPortrait==='function') ? spiritPortrait(api.s.id) : '';
   const FACE = por ? '<span class="face por" style="background:center/contain no-repeat url('+por+')"></span>'
                    : '<span class="face">'+A.face+'</span>';
-  const d=document.createElement('div'); d.className='quizBox askBox';
-  d.innerHTML =
-    '<div class="askWho">'+FACE+'<b>'+A.who+'</b><i>이(가) 말을 건다</i></div>'+
-    '<div class="askLead">'+A.lead+'</div>'+
-    '<div class="q askQ">'+q.q+'</div>'+
-    '<div class="askYou">나의 대답</div>';
+  const ctrl = $('#shCtrl');
+  const d = document.createElement('div'); d.className = 'quizBox askBox';
+  ctrl.appendChild(d);
 
-  const react=document.createElement('div'); react.className='askReact'; react.style.display='none';
-  const ex=document.createElement('div'); ex.className='explain'; ex.style.display='none'; ex.innerHTML=q.e;
+  let tries = 0;
 
-  let tries=0;
-  const btns=[0,1,2,3].map(i=>{
-    const b=document.createElement('button'); b.className='opt'; b.textContent='“'+q.o[i]+'”';
-    b.onclick=()=>{
-      if(d.dataset.done) return;
-      if(i===q.a){
-        b.classList.add('ok'); d.dataset.done='1';
-        btns.forEach(o=>{ if(o!==b) o.disabled=true; });
-        AUDIO.sfx('right');
-        react.className='askReact ok'; react.style.display='block';
-        react.innerHTML=FACE+'<span>'+A.right+'</span>';
-        ex.style.display='block';
-        setTimeout(scrollShrineTop, 320);            /* 정답 → 화면을 위로 */
-        setTimeout(()=>clearShrine(api.s), 1300);
-      } else {
-        tries++;
-        b.classList.add('no'); b.disabled=true;
-        AUDIO.sfx('wrong');
-        react.className='askReact no'; react.style.display='block';
-        react.innerHTML=FACE+'<span>'+A.wrong+'</span>';
-        /* 두 번 틀리면 배움 노트를 다시 펼쳐 준다 (답은 알려주지 않는다) */
-        if(tries>=2){
-          react.innerHTML += '<div class="askNote">📘 '+api.s.note+'</div>';
+  function renderHearts(){
+    const hearts = tries===0 ? '❤️❤️❤️' : (tries===1 ? '💔❤️❤️' : (tries===2 ? '💔💔❤️' : '💔💔💔'));
+    return '<div class="quizHearts">' +
+           '<span>정령의 시험 생명력: <span class="hIcons" id="qHearts">'+hearts+'</span></span>' +
+           '<span class="qProgBadge" style="font-weight:900;color:#1e6bb8;background:#eef6fc;padding:2px 8px;border-radius:6px;font-size:12px">문제 '+(qIdx+1)+' / '+totalQ+'</span>' +
+           '</div>';
+  }
+
+  function renderCurrentQuestion(){
+    const q = qList[qIdx];
+    const leadText = q.lead || (qIdx===0 ? A.lead : '다음 질문이야. 잘 듣고 답해 보렴.');
+
+    d.innerHTML =
+      '<div class="askWho">'+FACE+'<b>'+A.who+'</b><i>이(가) 말을 건다</i></div>' +
+      renderHearts() +
+      '<div class="askLead">'+leadText+'</div>' +
+      '<div class="q askQ"><b>Q'+(qIdx+1)+'.</b> '+q.q+'</div>' +
+      '<div class="askYou">나의 대답</div>';
+
+    const react = document.createElement('div'); react.className = 'askReact'; react.style.display = 'none';
+    const ex = document.createElement('div'); ex.className = 'explain'; ex.style.display = 'none'; ex.innerHTML = q.e;
+
+    const btns = [0,1,2,3].map(i=>{
+      const b = document.createElement('button'); b.className = 'opt'; b.textContent = '“'+q.o[i]+'”';
+      b.onclick = ()=>{
+        if(d.dataset.busy) return;
+        if(i === q.a){
+          d.dataset.busy = '1';
+          b.classList.add('ok');
+          btns.forEach(o=>{ if(o!==b) o.disabled = true; });
+          AUDIO.sfx('right');
+          react.className = 'askReact ok'; react.style.display = 'block';
+          react.innerHTML = FACE + '<span>' + (qIdx + 1 < totalQ ? '정답이야! 다음 문제도 맞혀 보렴.' : A.right) + '</span>';
+          ex.style.display = 'block';
+
+          setTimeout(()=>{
+            if(qIdx + 1 < totalQ){
+              qIdx++;
+              delete d.dataset.busy;
+              renderCurrentQuestion();
+              d.scrollIntoView({behavior:'smooth', block:'center'});
+            } else {
+              setTimeout(scrollShrineTop, 200);
+              setTimeout(()=>clearShrine(api.s), 1100);
+            }
+          }, 1400);
+        } else {
+          tries++;
+          b.classList.add('no'); b.disabled = true;
+          AUDIO.sfx('wrong');
+          const qH = d.querySelector('#qHearts');
+          if(qH){
+            qH.textContent = tries===1 ? '💔❤️❤️' : (tries===2 ? '💔💔❤️' : '💔💔💔');
+          }
+
+          react.className = 'askReact no'; react.style.display = 'block';
+          react.innerHTML = FACE + '<span>' + A.wrong + '</span>';
+
+          if(tries === 2){
+            react.innerHTML += '<div class="askNote">📘 ' + api.s.note + '</div>';
+          }
+
+          if(tries >= 3){
+            d.dataset.busy = '1';
+            btns.forEach(o=>{ o.disabled = true; });
+            react.innerHTML = FACE + '<span style="color:#ff6b6b">"아직 원리를 온전히 깨닫지 못했구나. 시뮬레이션 목표를 다시 달성하여 기운을 모아오렴."</span>';
+            AUDIO.sfx('bossRoar');
+            setTimeout(()=>{
+              d.remove();
+              // 마지막 목표 단계 리셋 (단순 찍기 방지 및 재도전 유도)
+              const lastStep = Math.max(0, api.nSteps - 1);
+              api.doneSteps.delete(lastStep);
+              api.holdT[lastStep] = 0;
+              api.locked = false;
+              const el = api.stepEls[lastStep];
+              if(el){
+                el.classList.remove('done');
+                const iconEl = el.querySelector('i');
+                if(iconEl) iconEl.textContent = (lastStep + 1);
+              }
+              if(typeof toast==='function') toast('⚠️', '시험 실패! 원리를 다시 조작하여 목표를 달성하세요.', 3600);
+              scrollShrineTop();
+            }, 2200);
+          }
         }
-      }
-    };
-    d.appendChild(b); return b;
-  });
-  d.appendChild(react); d.appendChild(ex); ctrl.appendChild(d);
+      };
+      d.appendChild(b);
+      return b;
+    });
+
+    d.appendChild(react);
+    d.appendChild(ex);
+  }
+
+  renderCurrentQuestion();
   d.scrollIntoView({behavior:'smooth', block:'center'});
 }
 
@@ -181,7 +249,7 @@ function clearShrine(s){
   STATE.cores[s.id]=true; STATE.hp=3; STATE.inv=2; save(); refreshHud(); updateCityLight();
   $('#clearIcon').textContent='💠';
   $('#clearTitle').textContent = first ? s.short+' 에너지 코어 획득!' : '시련을 다시 완수했다';
-  $('#clearText').innerHTML = s.note + '<br><br><b style="color:#ffe08a">도시 전력 '+(coreCount()*10)+'%</b>' + (first?' &nbsp;·&nbsp; <b style="color:#8ef0a8">이 지역의 오염이 걷혔다</b>':'');
+  $('#clearText').innerHTML = s.note + '<br><br><b style="color:#ffe08a">도시 전력 '+(coreCount()*10)+'%</b>' + (first?' &nbsp;·&nbsp; <b style="color:#8ef0a8">이 지역의 오염이 걷혔다</b>':'') + (first?'<div style="margin-top:10px;font-size:13px;color:#a5d8ff">📖 <b>신재생에너지 지식 도감</b>에 ['+s.short+' 발전] 카드가 등록되었습니다! (단축키 J)</div>':'');
   AUDIO.sfx('core');
   $('#shClear').classList.add('on');
   scrollShrineTop();
@@ -197,14 +265,15 @@ function clearFinal(s){
   $('#clearTitle').textContent = first ? '에너지 믹스 설계 완료!' : '다시 한 번 설계를 완성했다';
   $('#clearText').innerHTML =
     '하루 24시간, 단 한 시간도 불이 꺼지지 않는 전력 계획이 완성되었다.<br><br>'+
-    '<b style="color:#ffe08a">서로 다른 에너지가 약점을 메워 주도록 알맞게 섞는 것 — 그것이 에너지 믹스다.</b>';
+    '<b style="color:#ffe08a">서로 다른 에너지가 약점을 메워 주도록 알맞게 섞는 것 — 그것이 에너지 믹스다.</b>'+
+    (first?'<div style="margin-top:10px;font-size:13px;color:#a5d8ff">📖 <b>신재생에너지 지식 도감</b>에 최종 [에너지 믹스] 카드가 등록되었습니다!</div>':'');
   $('#shClear').classList.add('on');
   scrollShrineTop();
-  $('#clearBtn').textContent='도시에 계획을 전하기 ▶';
+  $('#clearBtn').textContent = '빛의 도시로 돌아가기 ▶';
 }
 $('#clearBtn').onclick=()=>{
-  const wasFinal = !!(curShrine && curShrine.final);
-  const sid = justCleared; justCleared = null;
+  const sid = justCleared, wasFinal = STATE.finalDone && $('#clearIcon').textContent==='🌇';
+  justCleared=null;
   closeShrine();
   if(wasFinal){ setTimeout(showFinalEnding,600); return; }
   if(coreCount()>=10) setTimeout(showEnding,600);
@@ -212,14 +281,22 @@ $('#clearBtn').onclick=()=>{
     const left=10-coreCount();
     setQuest('열 개의 사당을 깨워라','남은 사당 <b>'+left+'곳</b>을 찾아 코어를 모으자.');
     toast('💠','에너지 코어 획득! 도시 전력 '+(coreCount()*10)+'%',3000);
+    if(sid && typeof SH!=='undefined' && SH[sid]){
+      setTimeout(()=>toast('📖', `지식 도감에 [${SH[sid].short} 발전] 카드가 등록되었습니다!`, 3400), 1600);
+    }
     /* 처음 깬 사당이면 밖에서 정령이 축하해 준다 */
     if(sid && typeof spiritOf!=='undefined' && spiritOf[sid]){
       setTimeout(()=>{ if(STATE.mode==='play') talkSpirit(spiritOf[sid]); }, 1400);
     }
-    /* 코어 5개 — 스모그 타이탄이 도시를 덮친다.
-       정령의 축하 대사가 떠 있을 수 있으므로 "대기"만 걸어 두고,
-       대화가 끝나 조작이 돌아왔을 때 루프에서 등장시킨다. */
-    if(coreCount()>=5 && !STATE.bossDone && !STATE.bossCleared) STATE.bossPending = true;
+    /* 코어 3, 6, 9개 — 환경 재앙 보스 3단계 등장 */
+    const cnt = coreCount();
+    if(cnt >= 9 && (STATE.bossStage||0) < 3){
+      STATE.bossPending = true;
+    } else if(cnt >= 6 && (STATE.bossStage||0) < 2){
+      STATE.bossPending = true;
+    } else if(cnt >= 3 && (STATE.bossStage||0) < 1){
+      STATE.bossPending = true;
+    }
   }
 };
 $('#shClose').onclick=()=>closeShrine();

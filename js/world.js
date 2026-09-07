@@ -276,7 +276,62 @@ const cityHouses = new THREE.Group(); cityGroup.add(cityHouses);   /* 멀리서�
   beacon.position.y = 17.6; tower.add(beacon);
   const bLight = new THREE.PointLight(0xffdd88, 0, 70); bLight.position.y = 17.6; tower.add(bLight);
   cityGroup.add(tower);
-  window.CITY = {tower, beacon, beaconMat, bLight, gy};
+
+  /* ───────── 빛의 도시 단계별 복구 인프라 (코어 수에 따라 순차 활성화) ───────── */
+  /* 1단계 (코어 2개 / 20%): 광장 가로등 6개 점등 */
+  const lanterns = new THREE.Group(); lanterns.visible = false; cityGroup.add(lanterns);
+  for(let i=0; i<6; i++){
+    const la = i/6*Math.PI*2 + 0.2;
+    const lx = Math.cos(la)*14.8, lz = Math.sin(la)*14.8, ly = hAt(lx,lz);
+    const lg = new THREE.Group(); lg.position.set(lx, ly, lz);
+    const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.13, 3.2, 6), matte(0x2c3e50));
+    pole.position.y = 1.6; lg.add(pole);
+    const lhead = new THREE.Mesh(new THREE.OctahedronGeometry(0.35, 0), glow(0xffe28a));
+    lhead.position.y = 3.3; lg.add(lhead);
+    const lLight = new THREE.PointLight(0xffe28a, 0.45, 12);
+    lLight.position.y = 3.3; lg.add(lLight);
+    lanterns.add(lg);
+  }
+
+  /* 3단계 (코어 6개 / 60%): 미래형 스마트팜 온실 & 화단 */
+  const smartFarm = new THREE.Group(); smartFarm.visible = false; cityGroup.add(smartFarm);
+  const sfx = 12.0, sfz = 12.0, sfy = hAt(sfx, sfz);
+  smartFarm.position.set(sfx, sfy, sfz);
+  const sfBase = new THREE.Mesh(new THREE.CylinderGeometry(4.0, 4.3, 0.4, 16), matte(0x6ab04c));
+  sfBase.position.y = 0.2; smartFarm.add(sfBase);
+  const sfDomeMat = new THREE.MeshLambertMaterial({color:0xa8e6cf, transparent:true, opacity:0.65});
+  const sfDome = new THREE.Mesh(new THREE.SphereGeometry(3.5, 16, 12, 0, Math.PI*2, 0, Math.PI*0.5), sfDomeMat);
+  sfDome.position.y = 0.4; smartFarm.add(sfDome);
+  const sfCore = new THREE.Mesh(new THREE.DodecahedronGeometry(1.2, 0), glow(0x2ed573));
+  sfCore.position.y = 1.6; smartFarm.add(sfCore);
+  const sfLight = new THREE.PointLight(0x7bed9f, 0.7, 14);
+  sfLight.position.y = 1.8; smartFarm.add(sfLight);
+
+  /* 4단계 (코어 8개 / 80%): 청정 에너지 분수대 */
+  const fountain = new THREE.Group(); fountain.visible = false; cityGroup.add(fountain);
+  const fBasin = new THREE.Mesh(new THREE.TorusGeometry(3.6, 0.35, 8, 24), matte(0x48dbfb));
+  fBasin.rotation.x = Math.PI/2; fBasin.position.set(0, gy+0.7, 0); fountain.add(fBasin);
+  const fWaterMat = new THREE.MeshBasicMaterial({color:0x54a0ff, transparent:true, opacity:0.65});
+  const fSpout = new THREE.Mesh(new THREE.ConeGeometry(1.5, 3.6, 12, 1, true), fWaterMat);
+  fSpout.position.set(0, gy+2.5, 0); fountain.add(fSpout);
+  const fDrops = [];
+  for(let d=0; d<14; d++){
+    const drop = new THREE.Mesh(new THREE.SphereGeometry(0.16, 4, 4), glow(0xc7ecee));
+    fountain.add(drop); fDrops.push(drop);
+  }
+
+  /* 5단계 (코어 10개 / 100%): 하늘로 뻗는 빛의 기둥 */
+  const lightPillar = new THREE.Group(); lightPillar.visible = false; cityGroup.add(lightPillar);
+  const pMat = new THREE.MeshBasicMaterial({color:0xffeaa7, transparent:true, opacity:0.42, side:THREE.DoubleSide});
+  const pillar = new THREE.Mesh(new THREE.CylinderGeometry(2.0, 3.6, 160, 16, 1, true), pMat);
+  pillar.position.set(0, gy + 88, 0); lightPillar.add(pillar);
+  const pCore = new THREE.Mesh(new THREE.CylinderGeometry(0.7, 1.1, 160, 8, 1, true), glow(0xffffff));
+  pCore.position.set(0, gy + 88, 0); lightPillar.add(pCore);
+
+  window.CITY = {
+    tower, beacon, beaconMat, bLight, gy,
+    lanterns, smartFarm, fountain, fSpout, fDrops, lightPillar
+  };
 
   /* 집 — 위로 갈수록 살짝 좁아지는 벽, 처마가 나온 지붕, 굴뚝 */
   for(let i=0;i<16;i++){

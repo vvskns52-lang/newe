@@ -200,6 +200,8 @@ input[type=range]::-moz-range-thumb{width:20px;height:20px;border-radius:50%;bac
 .askLead::before{content:'';position:absolute;left:12px;top:-9px;width:12px;height:12px;background:#fff;
   border-left:2px solid var(--line);border-top:2px solid var(--line);transform:rotate(45deg)}
 .askLead b{color:#c2691f}
+.quizHearts{display:flex;align-items:center;justify-content:space-between;background:#fff;border:1.5px solid var(--line);border-radius:10px;padding:6px 12px;margin:0 0 10px 6px;font-size:12.5px;font-weight:800;color:#2c3e50}
+.quizHearts .hIcons{font-size:15px;letter-spacing:2px}
 .quizBox .askQ{font-size:15px;line-height:1.55;margin:0 0 4px 6px}
 .askYou{font-size:11.5px;font-weight:800;color:var(--muted);margin:8px 0 6px 2px}
 .askReact{display:flex;gap:9px;align-items:flex-start;font-size:13px;line-height:1.65;font-weight:700;
@@ -480,4 +482,51 @@ body.touch #dialog{bottom:24px;width:min(560px,64vw);left:calc(50% + 20px)}
 .shopBuyBtn{display:flex;align-items:center;gap:5px;padding:8px 14px;font-size:13px;font-weight:900;border-radius:10px;cursor:pointer}
 .shopBuyBtn:disabled{opacity:.45;cursor:not-allowed;filter:grayscale(1)}
 .shopFoot{padding:10px 18px 14px;border-top:1px solid var(--line);background:#faf8f2;text-align:center;color:var(--muted);font-weight:700;font-size:11.5px}
+
+/* ───────── 신재생에너지 지식 도감 모달 ───────── */
+#archive{position:fixed;inset:0;z-index:55;display:none;align-items:center;justify-content:center;padding:20px;
+  background:rgba(9,17,30,.84);backdrop-filter:blur(8px)}
+#archive.on{display:flex}
+.archivePanel{width:min(780px,94vw);max-height:90vh;display:flex;flex-direction:column;padding:0;overflow:hidden;animation:rise .3s cubic-bezier(.2,.9,.3,1)}
+.archHead{display:flex;align-items:center;justify-content:space-between;padding:16px 22px 14px;background:linear-gradient(180deg,#fff,#f8f4e9);border-bottom:2px solid var(--line)}
+.archTtl{display:flex;align-items:center;gap:12px}
+.archIcon{font-size:26px;background:#eef6fc;border:2px solid #9fc1e2;border-radius:12px;width:44px;height:44px;display:grid;place-items:center;flex:0 0 auto}
+.archHead h3{font-family:var(--disp);font-size:18.5px;margin:0 0 2px}
+.archHead p{font-size:12px;color:var(--muted);font-weight:700;margin:0}
+.archClose{background:none;border:none;font-size:22px;color:var(--muted);cursor:pointer;padding:4px 8px;border-radius:8px;font-weight:900}
+.archClose:hover{color:var(--ink);background:rgba(0,0,0,.05)}
+
+.archProgressRow{padding:10px 22px;background:#eef6fc;border-bottom:1px solid #d2e4f5}
+.archProgTxt{display:flex;justify-content:space-between;font-size:13px;font-weight:800;color:#2c4b69;margin-bottom:6px}
+.archProgTxt b{font-family:var(--num);font-size:16px;color:#1e6bb8}
+.archBar{height:8px;border-radius:6px;background:#d5e5f5;overflow:hidden}
+.archBar i{display:block;height:100%;width:0;background:linear-gradient(90deg,#3b82f6,#10b981);border-radius:6px;transition:width .4s ease-out}
+
+.archTabs{display:flex;gap:6px;padding:10px 20px;background:#faf8f2;border-bottom:1px solid var(--line);overflow-x:auto}
+.archTab{padding:6px 13px;border-radius:9px;border:1.5px solid var(--line);background:#fff;font-family:var(--body);font-size:12px;font-weight:800;cursor:pointer;color:var(--muted);white-space:nowrap;transition:.12s}
+.archTab:hover{border-color:#1b2b3d;color:var(--ink)}
+.archTab.on{background:var(--ink);color:#ffe08a;border-color:var(--ink)}
+
+.archGrid{padding:16px 20px;overflow-y:auto;display:flex;flex-direction:column;gap:12px;max-height:56vh}
+.archCard{background:#fff;border:2px solid var(--line);border-radius:14px;padding:14px 16px;box-shadow:0 3px 10px rgba(0,0,0,.04);transition:transform .15s,box-shadow .15s,border-color .15s}
+.archCard.locked{background:#f8f9fa;border-style:dashed;border-color:#cfd7e0;opacity:.82}
+.archCard.unlocked{border-color:#c8dbe9}
+.archCard.unlocked:hover{transform:translateY(-1px);box-shadow:0 6px 18px rgba(30,60,90,.12);border-color:#6ba3d6}
+
+.archCardTop{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+.archCardHead{display:flex;align-items:center;gap:10px}
+.archCardIcon{width:42px;height:42px;border-radius:11px;display:grid;place-items:center;font-size:22px;background:#fff8e6;border:1px solid #ebd498;flex:0 0 auto}
+.archCard.locked .archCardIcon{background:#e9ecef;border-color:#ced4da;filter:grayscale(1)}
+.archCardName{font-weight:900;font-size:15px;color:var(--ink)}
+.archCardBadge{font-size:11px;font-weight:800;padding:2px 7px;border-radius:6px;background:#eef6fc;color:#2b6cb0;display:inline-block;margin-left:6px}
+
+.archCardSummary{font-size:12.5px;font-weight:700;color:#3b5266;margin:8px 0 10px;line-height:1.5;background:#f8fafc;padding:7px 11px;border-radius:8px;border-left:3px solid #3b82f6}
+.archCardLockedMsg{font-size:12.5px;font-weight:700;color:#7a8a99;margin-top:6px;display:flex;align-items:center;gap:6px}
+
+.archCardDetails{display:grid;grid-template-columns:1fr;gap:8px;font-size:12px;line-height:1.55;color:#41566b;margin-top:10px;border-top:1px dashed var(--line);padding-top:10px}
+.archSec{background:#fffdfa;border:1px solid #f0e6d2;border-radius:9px;padding:8px 11px}
+.archSec b{color:#1b2b3d;display:flex;align-items:center;gap:4px;margin-bottom:3px;font-size:12px}
+.archKeyBox{background:#f0fdf4;border:1px solid #bbf7d0;color:#166534;font-weight:700}
+
+.archFoot{padding:10px 18px 14px;border-top:1px solid var(--line);background:#faf8f2;text-align:center;color:var(--muted);font-weight:700;font-size:11.5px}
 

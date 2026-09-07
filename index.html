@@ -66,6 +66,7 @@
     <div id="tTop">
       <button class="tsq" id="tShop" title="에너지 파편 교환소 (B)" aria-label="에너지 파편 교환소">✨<small>상점</small></button>
       <button class="tsq" id="tMap" title="전체 지도 · 빠른 이동 (M)" aria-label="지도 크게 보기">🗺️<small>지도</small></button>
+      <button class="tsq" id="tArchive" title="신재생에너지 지식 도감 (J)" aria-label="에너지 지식 도감">📖<small>도감</small></button>
       <button class="tsq" id="tHelp" title="조작 방법 및 가이드 (H)" aria-label="조작 방법 도움말">❓<small>조작법</small></button>
       <button class="tsq" id="sndBtn" title="소리 켜기/끄기 (K)" aria-label="소리 켜기/끄기">🔊<small>소리</small></button>
       <button class="tsq" id="fsBtn" title="전체 화면" aria-label="전체 화면">⛶<small>전체</small></button>
@@ -83,13 +84,13 @@
   </div>
   <div id="bossBar">
     <div id="bossBarWrap" class="panel">
-      <div class="bossTop"><span class="bossIcon">☠️</span><b>스모그 타이탄</b><i id="bossPhase"></i></div>
+      <div class="bossTop"><span id="bossIcon" class="bossIcon">☠️</span><b id="bossName">스모그 타이탄</b><i id="bossPhase"></i></div>
       <div class="bossTrack"><i id="bossHp"></i></div>
     </div>
   </div>
   <div id="prompt" class="panel"><span class="ekey">E</span><span class="txt"></span></div>
   <div id="toast"></div>
-  <div id="hint">H · 조작법 &nbsp;|&nbsp; B · 파편 교환소 &nbsp;|&nbsp; M · 지도 확대 &nbsp;|&nbsp; 마우스 휠 · 줌</div>
+  <div id="hint">H · 조작법 &nbsp;|&nbsp; J · 지식 도감 &nbsp;|&nbsp; B · 파편 교환소 &nbsp;|&nbsp; M · 지도 확대</div>
 </div>
 
 <!-- ═══════════ 터치 컨트롤 ═══════════ -->
@@ -160,6 +161,7 @@
          태블릿에는 키보드가 없으므로 WASD 표를 보여 줘 봐야 소용이 없다. -->
     <table>
       <tr class="kbd"><td>❓ / H</td><td>조작 방법 및 가이드 열기/닫기 (상단 버튼)</td></tr>
+      <tr class="kbd"><td>📖 / J</td><td>신재생에너지 지식 도감 열기/닫기 (상단 버튼)</td></tr>
       <tr class="kbd"><td>W A S D</td><td>앞·뒤·좌·우 이동 (카메라 기준)</td></tr>
       <tr class="kbd"><td>마우스 드래그</td><td>카메라 회전 · 휠로 줌</td></tr>
       <tr class="kbd"><td>Shift</td><td>달리기</td></tr>
@@ -233,6 +235,40 @@
   </div>
   <div class="shopFoot">
     <span>💡 몬스터를 정화하거나 숨겨진 파편을 모아 언제든 능력을 강화할 수 있습니다. (단축키 B)</span>
+  </div>
+</div></div>
+
+<!-- ═══════════ 에너지 지식 도감 ═══════════ -->
+<div id="archive"><div class="panel archivePanel">
+  <div class="archHead">
+    <div class="archTtl">
+      <span class="archIcon">📖</span>
+      <div>
+        <h3>신재생에너지 지식 도감</h3>
+        <p>열 개의 사당에서 깨운 청정 에너지의 과학적 원리와 교과 핵심 요약</p>
+      </div>
+    </div>
+    <button class="archClose" id="archX" aria-label="닫기">✕</button>
+  </div>
+  <div class="archProgressRow">
+    <div class="archProgTxt">
+      <span>지식 수집률: <b id="archCount">0 / 11</b></span>
+      <span id="archPct">0%</span>
+    </div>
+    <div class="archBar"><i id="archBarFill"></i></div>
+  </div>
+  <div class="archTabs">
+    <button class="archTab on" data-filter="all">전체</button>
+    <button class="archTab" data-filter="1차시">1차시 (태양)</button>
+    <button class="archTab" data-filter="2차시">2차시 (풍·수·지·해)</button>
+    <button class="archTab" data-filter="3차시">3차시 (바이오·폐기물)</button>
+    <button class="archTab" data-filter="4차시">4차시 (수소·연료전지)</button>
+  </div>
+  <div class="archGrid" id="archGrid">
+    <!-- 자바스크립트로 동적 렌더링 -->
+  </div>
+  <div class="archFoot">
+    <span>💡 각 사당의 시련을 통과하여 에너지 코어를 획득하면 해당 지식 카드가 해금됩니다. (단축키 J)</span>
   </div>
 </div></div>
 
