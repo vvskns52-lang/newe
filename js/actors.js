@@ -2,20 +2,46 @@
    actors.js — 사당 구조물 · 플레이어 · NPC · 에너지 파편
    ═══════════════════════════════════════════════════ */
 /* ══════════════ 라벨 스프라이트 ══════════════ */
-function makeLabel(text, sub, hex){
-  const cv=document.createElement('canvas'); cv.width=512; cv.height=160;
+function makeLabel(text, sub, hex, icon){
+  const cv=document.createElement('canvas'); cv.width=512; cv.height=170;
   const g=cv.getContext('2d');
-  g.font='900 58px "Gothic A1", sans-serif'; g.textAlign='center';
-  const w=Math.max(g.measureText(text).width+70, 250);
-  g.fillStyle='rgba(20,32,47,.82)';
-  const x=(512-w)/2, y=16, h=78, r=26;
+  const w = 440, h = 136, x = (512 - w)/2, y = 14, r = 24;
+  g.fillStyle='rgba(16, 26, 38, 0.88)';
   g.beginPath(); g.moveTo(x+r,y); g.arcTo(x+w,y,x+w,y+h,r); g.arcTo(x+w,y+h,x,y+h,r); g.arcTo(x,y+h,x,y,r); g.arcTo(x,y,x+w,y,r); g.fill();
   g.strokeStyle=hex; g.lineWidth=4; g.stroke();
-  g.fillStyle='#fff'; g.fillText(text, 256, 74);
-  if(sub){ g.font='800 34px "Gothic A1", sans-serif'; g.fillStyle=hex; g.fillText(sub, 256, 128); }
+
+  if(icon){
+    const ex = x + 62, ey = y + h/2;
+    g.fillStyle = hex + '26';
+    g.beginPath(); g.arc(ex, ey, 40, 0, 6.283); g.fill();
+    g.strokeStyle = hex; g.lineWidth = 3; g.stroke();
+    g.font = '46px "Gothic A1", sans-serif';
+    g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.fillText(icon, ex, ey + 2);
+
+    g.textAlign = 'left';
+    g.fillStyle = '#ffffff';
+    g.font = '900 42px "Gothic A1", sans-serif';
+    g.fillText(text, x + 120, y + 54);
+    if(sub){
+      g.font = '800 24px "Gothic A1", sans-serif';
+      g.fillStyle = hex;
+      g.fillText(sub, x + 122, y + 96);
+    }
+  } else {
+    g.textAlign='center';
+    g.fillStyle='#fff';
+    g.font='900 46px "Gothic A1", sans-serif';
+    g.fillText(text, 256, y + 56);
+    if(sub){
+      g.font='800 26px "Gothic A1", sans-serif';
+      g.fillStyle=hex;
+      g.fillText(sub, 256, y + 98);
+    }
+  }
   const tex=new THREE.CanvasTexture(cv); tex.anisotropy=4;
   const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:tex, transparent:true, depthTest:false, sizeAttenuation:false}));
-  sp.scale.set(0.225,0.070,1); sp.renderOrder=999;
+  sp.scale.set(0.24, 0.08, 1); sp.renderOrder=999;
   return sp;
 }
 
@@ -56,142 +82,147 @@ function buildShrine(s){
     case 'pv': {
       for(let i=0;i<3;i++){
         const pnl=new THREE.Group();
-        const board=new THREE.Mesh(new THREE.BoxGeometry(4.4,0.18,2.7), mat(0x2a4a86)); pnl.add(board);
-        for(let c=0;c<4;c++) for(let r2=0;r2<2;r2++){
-          const cell=new THREE.Mesh(new THREE.BoxGeometry(0.95,0.06,1.15), mat(0x4f7fd0));
-          cell.position.set(-1.65+c*1.1, 0.14, -0.65+r2*1.3); pnl.add(cell);
+        const frame=new THREE.Mesh(new THREE.BoxGeometry(4.2,0.16,2.6), matte(ART.shrine.stone2)); pnl.add(frame);
+        for(let c=0;c<3;c++) for(let r2=0;r2<2;r2++){
+          const cell=new THREE.Mesh(new THREE.BoxGeometry(1.26,0.06,1.15), matte(0x234888));
+          cell.position.set(-1.32+c*1.32, 0.10, -0.62+r2*1.24); pnl.add(cell);
         }
-        const leg=new THREE.Mesh(new THREE.CylinderGeometry(0.16,0.16,1.6,5), stone2); leg.position.y=-0.9; pnl.add(leg);
-        pnl.rotation.x=-0.62; pnl.position.set(-3.6+i*3.6, 1.5, -1.4); dev.add(pnl);
+        const leg=new THREE.Mesh(new THREE.CylinderGeometry(0.12,0.12,1.8,6), stone); leg.position.y=-0.9; pnl.add(leg);
+        pnl.rotation.x=-0.55; pnl.position.set(-3.5+i*3.5, 1.6, -1.2); dev.add(pnl);
       }
+      const inv=A(new THREE.Mesh(new THREE.BoxGeometry(1.8,1.4,1.4), matte(ART.shrine.metal)), 0, 0.7, 2.4);
+      const ind=new THREE.Mesh(new THREE.BoxGeometry(1.2,0.2,0.05), new THREE.MeshBasicMaterial({color:0x4fd0e0}));
+      ind.position.set(0, 0.2, 0.72); inv.add(ind);
       break; }
     case 'st': {
-      const tw=A(new THREE.Mesh(new THREE.CylinderGeometry(0.7,1.1,6.2,7), stone2),0,3.1,0);
-      const rc=A(new THREE.Mesh(new THREE.SphereGeometry(1.15,10,8), new THREE.MeshBasicMaterial({color:0xffd166})),0,6.3,0);
+      const tw=A(new THREE.Mesh(new THREE.CylinderGeometry(0.65,1.1,7.2,8), stone2),0,3.6,0);
+      const rc=A(new THREE.Mesh(new THREE.SphereGeometry(1.2,12,10), new THREE.MeshBasicMaterial({color:0xffcc00})),0,7.2,0);
       flow.push({m:rc,amp:0,glow:true});
-      for(let i=0;i<7;i++){
-        const a=Math.PI*0.25+i/7*Math.PI*1.5;
-        const mir=new THREE.Mesh(new THREE.BoxGeometry(1.9,0.12,1.4), new THREE.MeshLambertMaterial({color:0xdfeaf5,flatShading:true}));
-        mir.position.set(Math.cos(a)*4.6, 1.2, Math.sin(a)*4.6);
-        mir.lookAt(new THREE.Vector3(0,5.5,0)); dev.add(mir);
-        const st2=new THREE.Mesh(new THREE.CylinderGeometry(0.13,0.13,1.2,5), stone2);
-        st2.position.set(Math.cos(a)*4.6,0.6,Math.sin(a)*4.6); dev.add(st2);
+      for(let i=0;i<8;i++){
+        const a=i/8*Math.PI*2;
+        const mir=new THREE.Mesh(new THREE.BoxGeometry(1.8,0.12,1.3), new THREE.MeshLambertMaterial({color:0xdfeaf5,flatShading:true}));
+        mir.position.set(Math.cos(a)*4.6, 1.3, Math.sin(a)*4.6);
+        mir.lookAt(new THREE.Vector3(0,6.5,0)); dev.add(mir);
+        const st2=new THREE.Mesh(new THREE.CylinderGeometry(0.12,0.12,1.3,6), stone2);
+        st2.position.set(Math.cos(a)*4.6,0.65,Math.sin(a)*4.6); dev.add(st2);
       }
       break; }
     case 'wind': {
-      const mast=A(new THREE.Mesh(new THREE.CylinderGeometry(0.42,0.75,9.5,8), matte(0xf6f2e6)),0,4.75,0);
-      const nac =A(new THREE.Mesh(new THREE.BoxGeometry(1.1,1.0,2.4), matte(ART.shrine.stone)),0,9.7,0.4);
-      const rot = new THREE.Group(); rot.position.set(0,9.7,1.7); dev.add(rot);
-      const hub=new THREE.Mesh(new THREE.SphereGeometry(0.42,8,6), matte(ART.shrine.stone2)); rot.add(hub);
+      const mast=A(new THREE.Mesh(new THREE.CylinderGeometry(0.38,0.72,9.8,10), matte(0xf4f0e6)),0,4.9,0);
+      const nac =A(new THREE.Mesh(new THREE.BoxGeometry(1.2,1.1,2.5), matte(ART.shrine.stone)),0,9.9,0.3);
+      const rot = new THREE.Group(); rot.position.set(0,9.9,1.7); dev.add(rot);
+      const hub=new THREE.Mesh(new THREE.SphereGeometry(0.44,10,8), matte(ART.shrine.stone2)); rot.add(hub);
       for(let i=0;i<3;i++){
-        const bl=new THREE.Mesh(new THREE.BoxGeometry(0.32,6.4,0.12), mat(0xffffff));
-        bl.position.y=3.2;
+        const bl=new THREE.Mesh(new THREE.BoxGeometry(0.30,6.8,0.10), mat(0xffffff));
+        bl.position.y=3.4;
         const w=new THREE.Group(); w.rotation.z=i/3*Math.PI*2; w.add(bl); rot.add(w);
       }
-      spin.push({m:rot, axis:'z', spd:1.9});
+      spin.push({m:rot, axis:'z', spd:2.0});
       break; }
     case 'hyd': {
-      const dam=A(new THREE.Mesh(new THREE.BoxGeometry(11,5.4,1.8), stone),0,2.7,-2.2);
-      const res=new THREE.Mesh(new THREE.BoxGeometry(10.6,4.6,5.4), new THREE.MeshLambertMaterial({color:0x4ea3e0,transparent:true,opacity:0.85,flatShading:true}));
-      res.position.set(0,2.3,-5.6); dev.add(res);
+      const dam=A(new THREE.Mesh(new THREE.BoxGeometry(11,5.2,2.4), stone),0,2.6,-2.0);
+      const res=new THREE.Mesh(new THREE.BoxGeometry(10.6,4.4,5.0), new THREE.MeshLambertMaterial({color:0x3b82c4,transparent:true,opacity:0.85,flatShading:true}));
+      res.position.set(0,2.2,-5.0); dev.add(res);
       for(let i=0;i<3;i++){
-        const fall=new THREE.Mesh(new THREE.BoxGeometry(1.5,4.6,0.5), new THREE.MeshLambertMaterial({color:0x9fd8f5,transparent:true,opacity:0.8,flatShading:true}));
-        fall.position.set(-3.2+i*3.2, 2.3, -1.1); dev.add(fall); flow.push({m:fall,amp:0.5,spd:2.6+i});
+        const gate=new THREE.Mesh(new THREE.BoxGeometry(1.6,4.4,0.4), matte(ART.shrine.metal));
+        gate.position.set(-3.2+i*3.2, 2.2, -0.8); dev.add(gate);
+        const fall=new THREE.Mesh(new THREE.BoxGeometry(1.3,4.2,0.4), new THREE.MeshLambertMaterial({color:0x88d4f7,transparent:true,opacity:0.82,flatShading:true}));
+        fall.position.set(-3.2+i*3.2, 2.1, -0.6); dev.add(fall); flow.push({m:fall,amp:0.4,spd:2.8+i*0.4});
       }
-      const ph=A(new THREE.Mesh(new THREE.BoxGeometry(4.2,2.4,3.2), matte(ART.city.wall[1])),0,1.2,2.6);
-      const turb=new THREE.Mesh(new THREE.TorusGeometry(1.0,0.32,6,10), matte(ART.shrine.metal));
-      turb.position.set(0,1.4,4.3); dev.add(turb); spin.push({m:turb,axis:'z',spd:3.2});
+      const ph=A(new THREE.Mesh(new THREE.BoxGeometry(6.4,2.2,3.0), matte(ART.city.wall[1])),0,1.1,2.0);
+      const turb=new THREE.Mesh(new THREE.TorusGeometry(0.9,0.28,8,12), matte(ART.shrine.metal));
+      turb.position.set(0,1.1,3.6); dev.add(turb); spin.push({m:turb,axis:'z',spd:3.4});
       break; }
     case 'geo': {
-      const cone=A(new THREE.Mesh(new THREE.ConeGeometry(4.6,3.4,7), matte(0x8a705c)),0,1.7,-2.6);
-      const lava=new THREE.Mesh(new THREE.CircleGeometry(1.5,8), new THREE.MeshBasicMaterial({color:0xff7043}));
-      lava.rotation.x=-Math.PI/2; lava.position.set(0,3.42,-2.6); dev.add(lava);
+      const plant=A(new THREE.Mesh(new THREE.BoxGeometry(6.0,2.6,3.6), matte(ART.city.wall[2])),-0.8,1.3,1.8);
       for(let i=0;i<3;i++){
-        const pipe=new THREE.Mesh(new THREE.CylinderGeometry(0.28,0.28,5.2,6), matte(ART.shrine.stone2));
-        pipe.position.set(-2.4+i*2.4, 2.6, 1.4); dev.add(pipe);
+        const pipe=new THREE.Mesh(new THREE.CylinderGeometry(0.24,0.24,4.6,8), matte(ART.shrine.metal));
+        pipe.position.set(-3.0+i*2.2, 2.3, -2.2); dev.add(pipe);
+        const valve=new THREE.Mesh(new THREE.TorusGeometry(0.42,0.12,6,10), new THREE.MeshBasicMaterial({color:0xe8674f}));
+        valve.position.set(-3.0+i*2.2, 3.8, -2.2); valve.rotation.x=Math.PI/2; dev.add(valve);
       }
-      const hall=A(new THREE.Mesh(new THREE.BoxGeometry(6.4,2.6,3.4), matte(ART.city.wall[2])),0,1.3,3.4);
-      const cool=A(new THREE.Mesh(new THREE.CylinderGeometry(1.5,2.0,3.6,9), matte(ART.shrine.stone2)),3.9,1.8,0.2);
-      for(let i=0;i<4;i++){
-        const st2=new THREE.Mesh(new THREE.SphereGeometry(0.9,7,5), new THREE.MeshLambertMaterial({color:0xffffff,transparent:true,opacity:0.55,flatShading:true}));
-        st2.position.set(3.9,4.2+i*1.5,0.2); dev.add(st2); flow.push({m:st2,amp:1.3,spd:0.6+i*0.3,rise:true});
+      for(let k=0;k<2;k++){
+        const cool=A(new THREE.Mesh(new THREE.CylinderGeometry(1.3,1.8,3.8,12), matte(ART.shrine.stone2)), 3.2, 1.9, -1.8+k*3.4);
+        for(let i=0;i<3;i++){
+          const st2=new THREE.Mesh(new THREE.SphereGeometry(0.75,8,6), new THREE.MeshLambertMaterial({color:0xffffff,transparent:true,opacity:0.5,flatShading:true}));
+          st2.position.set(3.2, 4.2+i*1.4, -1.8+k*3.4); dev.add(st2); flow.push({m:st2,amp:1.1,spd:0.7+i*0.3,rise:true});
+        }
       }
       break; }
     case 'oce': {
-      const bar=A(new THREE.Mesh(new THREE.BoxGeometry(12,2.4,2.2), stone),0,1.2,-1.2);
-      for(let i=0;i<4;i++){
-        const gate=new THREE.Mesh(new THREE.BoxGeometry(1.7,2.0,0.4), matte(ART.shrine.metal));
-        gate.position.set(-4.5+i*3, 1.2, -0.1); dev.add(gate);
-      }
-      const seaIn=new THREE.Mesh(new THREE.BoxGeometry(12,1.2,5.4), new THREE.MeshLambertMaterial({color:0x53b6e0,transparent:true,opacity:0.85,flatShading:true}));
-      seaIn.position.set(0,0.6,-4.6); dev.add(seaIn); flow.push({m:seaIn,amp:0.4,spd:0.7});
+      const bar=A(new THREE.Mesh(new THREE.BoxGeometry(11.5,2.6,2.4), stone),0,1.3,-1.0);
       for(let i=0;i<3;i++){
-        const buoy=new THREE.Mesh(THREE.CapsuleGeometry ? new THREE.CapsuleGeometry(0.7,1.2,4,8) : new THREE.CylinderGeometry(0.7,0.7,2,8), mat(0xffc94d));
-        buoy.position.set(-4+i*4, 1.0, 4.4); dev.add(buoy); flow.push({m:buoy,amp:0.55,spd:1.4+i*0.4});
+        const gate=new THREE.Mesh(new THREE.BoxGeometry(2.0,2.2,0.5), matte(ART.shrine.metal));
+        gate.position.set(-3.2+i*3.2, 1.3, 0.2); dev.add(gate);
       }
-      const tur=new THREE.Mesh(new THREE.TorusGeometry(1.1,0.26,6,10), matte(ART.shrine.metal));
-      tur.position.set(4.6,1.4,1.6); tur.rotation.y=Math.PI/2; dev.add(tur); spin.push({m:tur,axis:'z',spd:2.2});
+      const seaIn=new THREE.Mesh(new THREE.BoxGeometry(11,1.0,4.6), new THREE.MeshLambertMaterial({color:0x2d9cdb,transparent:true,opacity:0.82,flatShading:true}));
+      seaIn.position.set(0,0.5,-4.0); dev.add(seaIn); flow.push({m:seaIn,amp:0.35,spd:0.8});
+      [-3.4, 3.4].forEach(tx=>{
+        const colm=new THREE.Mesh(new THREE.CylinderGeometry(0.3,0.3,2.4,8), matte(ART.shrine.stone2));
+        colm.position.set(tx, 1.2, 3.2); dev.add(colm);
+        const tur=new THREE.Mesh(new THREE.TorusGeometry(1.1,0.24,8,12), matte(ART.shrine.metal));
+        tur.position.set(tx, 2.2, 3.2); tur.rotation.y=Math.PI/2; dev.add(tur); spin.push({m:tur,axis:'z',spd:2.6});
+      });
       break; }
     case 'bio': {
-      for(let i=0;i<2;i++){
-        const silo=new THREE.Mesh(new THREE.CylinderGeometry(1.5,1.5,4.4,10), matte(ART.city.wall[0]));
-        silo.position.set(-3.2+i*6.4, 2.2, -1.6); dev.add(silo);
-        const top=new THREE.Mesh(new THREE.SphereGeometry(1.5,10,6,0,6.29,0,1.57), mat(0x9cc46a));
-        top.position.set(-3.2+i*6.4, 4.4, -1.6); dev.add(top);
-      }
-      const dome=A(new THREE.Mesh(new THREE.SphereGeometry(2.6,12,8,0,6.29,0,1.57), mat(0x8dc63f)),0,0.1,2.4);
-      const barn=A(new THREE.Mesh(new THREE.BoxGeometry(4.4,2.2,3.0), matte(ART.city.wood)),0,1.1,-4.4);
-      for(let i=0;i<10;i++){
-        const corn=new THREE.Mesh(new THREE.ConeGeometry(0.28,1.5,5), mat(0xf0d564));
-        corn.position.set(-4.5+ (i%5)*2.2, 0.75, 4.6+((i/5)|0)*1.6); dev.add(corn);
-      }
+      const dome=A(new THREE.Mesh(new THREE.SphereGeometry(3.0,14,10,0,6.29,0,1.57), matte(0x68a357)),-2.4,0.1,0.5);
+      const ring=new THREE.Mesh(new THREE.TorusGeometry(3.0,0.18,6,24), matte(ART.shrine.metal));
+      ring.rotation.x=Math.PI/2; ring.position.set(-2.4,0.1,0.5); dev.add(ring);
+      const gasTank=A(new THREE.Mesh(new THREE.SphereGeometry(1.7,12,10), matte(0xddeed2)),2.8,2.0,-1.6);
+      const stand=new THREE.Mesh(new THREE.CylinderGeometry(1.6,1.9,1.0,10), matte(ART.shrine.stone2));
+      stand.position.set(2.8,0.5,-1.6); dev.add(stand);
+      const silo=A(new THREE.Mesh(new THREE.CylinderGeometry(1.3,1.3,4.6,12), matte(ART.city.wall[0])),2.8,2.3,2.4);
+      const siloCap=new THREE.Mesh(new THREE.ConeGeometry(1.4,1.0,12), matte(ART.shrine.metal));
+      siloCap.position.set(2.8,4.9,2.4); dev.add(siloCap);
+      const p1=new THREE.Mesh(new THREE.CylinderGeometry(0.14,0.14,4.2,6), matte(ART.shrine.metal));
+      p1.rotation.z=Math.PI/2; p1.position.set(0.2, 1.8, -0.6); dev.add(p1);
       break; }
     case 'wst': {
-      const plant=A(new THREE.Mesh(new THREE.BoxGeometry(7.4,3.4,4.4), matte(ART.city.wall[1])),0,1.7,0);
-      const stack=A(new THREE.Mesh(new THREE.CylinderGeometry(0.85,1.05,7.4,8), matte(ART.city.wall[2])),2.6,5.1,0);
-      const band=new THREE.Mesh(new THREE.CylinderGeometry(0.9,0.9,0.7,8), mat(0xc58bd6)); band.position.set(2.6,7.6,0); dev.add(band);
+      const plant=A(new THREE.Mesh(new THREE.BoxGeometry(6.6,3.6,4.0), matte(ART.city.wall[1])),-0.8,1.8,0.2);
+      const stack=A(new THREE.Mesh(new THREE.CylinderGeometry(0.75,0.95,7.6,10), matte(ART.shrine.stone2)),2.8,5.0,-0.6);
+      const ring=new THREE.Mesh(new THREE.CylinderGeometry(0.82,0.82,0.5,10), matte(0x9d72b5));
+      ring.position.set(2.8,7.8,-0.6); dev.add(ring);
       for(let i=0;i<3;i++){
-        const sm=new THREE.Mesh(new THREE.SphereGeometry(0.8,7,5), new THREE.MeshLambertMaterial({color:0xf3f3f3,transparent:true,opacity:0.45,flatShading:true}));
-        sm.position.set(2.6, 9.2+i*1.6, 0); dev.add(sm); flow.push({m:sm,amp:1.4,spd:0.5+i*0.25,rise:true});
+        const sm=new THREE.Mesh(new THREE.SphereGeometry(0.65,8,6), new THREE.MeshLambertMaterial({color:0xffffff,transparent:true,opacity:0.42,flatShading:true}));
+        sm.position.set(2.8, 9.2+i*1.5, -0.6); dev.add(sm); flow.push({m:sm,amp:1.2,spd:0.6+i*0.25,rise:true});
       }
-      const cols=[0xf0a3a3,0x9fd6f0,0xffe08a,0xa8e6a3];
-      for(let i=0;i<8;i++){
-        const bag=new THREE.Mesh(new THREE.IcosahedronGeometry(0.62,0), mat(cols[i%4]));
-        bag.position.set(-5+ (i%4)*1.4, 0.6, 3.4+((i/4)|0)*1.5); dev.add(bag);
-      }
+      [-2.6, -0.8].forEach((cx,ci)=>{
+        const cont=new THREE.Mesh(new THREE.BoxGeometry(1.6,1.4,2.2), matte(ci===0?0x5b9bd5:0x70ad47));
+        cont.position.set(cx, 0.7, 3.0); dev.add(cont);
+      });
       break; }
     case 'h2': {
-      for(let i=0;i<2;i++){
-        const tank=new THREE.Mesh(new THREE.CylinderGeometry(1.25,1.25,4.2,10), mat(0xe3f4f7));
-        tank.position.set(-3+i*6, 2.1, 0); dev.add(tank);
-        const cap=new THREE.Mesh(new THREE.SphereGeometry(1.25,10,7), mat(0x4fd0e0)); cap.position.set(-3+i*6,4.2,0); dev.add(cap);
-        for(let k=0;k<4;k++){
-          const b=new THREE.Mesh(new THREE.SphereGeometry(0.24,6,5), new THREE.MeshBasicMaterial({color:0xbdf1f7}));
-          b.position.set(-3+i*6, 0.6+k*0.9, 0.6); dev.add(b); flow.push({m:b,amp:1.7,spd:1.1+k*0.3,rise:true});
-        }
+      const electrolyzer=A(new THREE.Mesh(new THREE.BoxGeometry(4.2,2.2,2.8), matte(0xdfeef2)),-1.8,1.1,0.6);
+      const h2Ring=new THREE.Mesh(new THREE.TorusGeometry(1.2,0.12,6,20), new THREE.MeshBasicMaterial({color:0x39c5bb}));
+      h2Ring.position.set(-1.8, 2.8, 0.6); dev.add(h2Ring); spin.push({m:h2Ring,axis:'y',spd:1.4});
+      for(let i=0;i<3;i++){
+        const tank=new THREE.Mesh(new THREE.CylinderGeometry(0.7,0.7,4.8,10), matte(0xf0f7f9));
+        tank.position.set(2.4, 1.2+i*1.2, -0.4); tank.rotation.x=Math.PI/2; dev.add(tank);
+        const capF=new THREE.Mesh(new THREE.SphereGeometry(0.7,10,6), matte(0x39c5bb));
+        capF.position.set(2.4, 1.2+i*1.2, 2.0); dev.add(capF);
+        const capB=new THREE.Mesh(new THREE.SphereGeometry(0.7,10,6), matte(0x39c5bb));
+        capB.position.set(2.4, 1.2+i*1.2, -2.8); dev.add(capB);
       }
-      const cell=A(new THREE.Mesh(new THREE.BoxGeometry(3.4,1.6,2.2), mat(0xd6e9ee)),0,0.8,3.4);
-      const pv2=new THREE.Mesh(new THREE.BoxGeometry(3.4,0.14,2.0), mat(0x2a4a86));
-      pv2.position.set(0,2.6,-3.6); pv2.rotation.x=-0.6; dev.add(pv2);
-      const wire=new THREE.Mesh(new THREE.TorusGeometry(1.5,0.1,5,20), new THREE.MeshBasicMaterial({color:0xffe08a}));
-      wire.position.set(0,3.6,0); wire.rotation.x=Math.PI/2; dev.add(wire); spin.push({m:wire,axis:'y',spd:1.1});
       break; }
     case 'fc': {
-      for(let i=0;i<5;i++){
-        const plate=new THREE.Mesh(new THREE.BoxGeometry(4.6,0.5,3.0), mat(i%2? 0x7ae0a8 : 0xdfeee6));
-        plate.position.set(0, 0.6+i*0.62, 0); dev.add(plate);
-      }
-      const h2t=new THREE.Mesh(new THREE.CylinderGeometry(0.85,0.85,3.4,9), mat(0x4fd0e0));
-      h2t.position.set(-3.9,1.7,0); dev.add(h2t);
-      const o2t=new THREE.Mesh(new THREE.CylinderGeometry(0.85,0.85,3.4,9), mat(0xa8d8ff));
-      o2t.position.set(3.9,1.7,0); dev.add(o2t);
+      const fcUnit=A(new THREE.Mesh(new THREE.BoxGeometry(5.2,2.8,3.2), matte(0x2d4059)),0,1.4,-0.4);
       for(let i=0;i<4;i++){
-        const dp=new THREE.Mesh(new THREE.SphereGeometry(0.3,7,6), new THREE.MeshBasicMaterial({color:0x9fe8ff}));
-        dp.position.set(0.4+i*0.4, 4.2, 2.2); dev.add(dp); flow.push({m:dp,amp:-1.5,spd:1.3+i*0.4,rise:true});
+        const cell=new THREE.Mesh(new THREE.BoxGeometry(1.0,2.0,0.1), matte(i%2?0x54d2a0:0x8ee8c5));
+        cell.position.set(-1.65+i*1.1, 1.4, 1.22); dev.add(cell);
+      }
+      [-1.4, 1.4].forEach(fx=>{
+        const fanRim=new THREE.Mesh(new THREE.TorusGeometry(0.85,0.12,6,16), matte(ART.shrine.metal));
+        fanRim.rotation.x=Math.PI/2; fanRim.position.set(fx, 2.85, -0.4); dev.add(fanRim);
+        const blade=new THREE.Mesh(new THREE.BoxGeometry(1.5,0.06,0.22), matte(0x1a2634));
+        blade.position.set(fx, 2.85, -0.4); dev.add(blade); spin.push({m:blade,axis:'y',spd:5.0});
+      });
+      for(let i=0;i<3;i++){
+        const dp=new THREE.Mesh(new THREE.SphereGeometry(0.24,6,6), new THREE.MeshBasicMaterial({color:0x70d6ff}));
+        dp.position.set(-1.2+i*1.2, 0.4, 2.0); dev.add(dp); flow.push({m:dp,amp:0.4,spd:1.8+i*0.4});
       }
       break; }
   }
-  const label = makeLabel(s.name, s.ch+'차시 · '+s.short, '#'+col.getHexString());
+  const label = makeLabel(s.name, s.ch+'차시 · '+s.short, '#'+col.getHexString(), s.icon);
   label.position.y=9.4; G.add(label);
   scene.add(G);
   shrineObjs[s.id] = {G, struct, core, halo, rune, spin, flow, label, dev};

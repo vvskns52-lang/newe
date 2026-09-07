@@ -4,20 +4,22 @@
 /* ══════════════ 게임 상태 ══════════════ */
 const STATE = {
   cores:{}, sparks:0, hintUsed:{}, talked:{}, started:false, hp:3, inv:0, heal:0, monLevel:2, finalDone:false, runes:{}, metSpirit:{}, bossDone:false, bossPending:false,
+  upgrades:{ maxHp:0, lightPower:0, magnet:false, weaponLevel:1, rapidFire:false }, speedBoostEnd:0,
   mode:'play',   // play | dialog | shrine | ending
   quest:{t:'빛의 도시로', b:'도시 광장의 시장 하람에게 말을 걸어 무슨 일이 벌어졌는지 들어보자.'}
 };
 try{ const sv=JSON.parse(localStorage.getItem('energyChronicle')||'null');
      if(sv){ STATE.cores=sv.cores||{}; STATE.sparks=sv.sparks||0; STATE.talked=sv.talked||{}; STATE.finalDone=!!sv.finalDone; STATE.runes=sv.runes||{}; STATE.metSpirit=sv.metSpirit||{}; STATE.bossDone=!!sv.bossDone; STATE.bossPending=!!sv.bossPending;
-       if(sv.monLevel!==undefined && sv.mv===2) STATE.monLevel=sv.monLevel;   /* 밀도 기본값이 '적당히'로 바뀌어, 옛 저장값은 한 번만 무시한다 */ } }catch(e){}
-function save(){ try{ localStorage.setItem('energyChronicle', JSON.stringify({cores:STATE.cores,sparks:STATE.sparks,talked:STATE.talked,monLevel:STATE.monLevel, mv:2,finalDone:STATE.finalDone,runes:STATE.runes,metSpirit:STATE.metSpirit,bossDone:STATE.bossDone,bossPending:STATE.bossPending})); }catch(e){} }
+       if(sv.upgrades) STATE.upgrades = Object.assign({ maxHp:0, lightPower:0, magnet:false, weaponLevel:1, rapidFire:false }, sv.upgrades);
+       STATE.monLevel=2; } }catch(e){}
+function save(){ try{ localStorage.setItem('energyChronicle', JSON.stringify({cores:STATE.cores,sparks:STATE.sparks,talked:STATE.talked,monLevel:STATE.monLevel, mv:2,finalDone:STATE.finalDone,runes:STATE.runes,metSpirit:STATE.metSpirit,bossDone:STATE.bossDone,bossPending:STATE.bossPending,upgrades:STATE.upgrades})); }catch(e){} }
 const coreCount = ()=>Object.keys(STATE.cores).length;
 const runeCount = ()=>Object.keys(STATE.runes).length;
 
 /* ══════════════ HUD ══════════════ */
 (function initHud(){
   const hp=$('#hpHud');
-  for(let i=0;i<3;i++){ const h=document.createElement('span'); h.className='heart'; h.id='hp'+i; h.textContent='💚'; hp.appendChild(h); }
+  for(let i=0;i<5;i++){ const h=document.createElement('span'); h.className='heart'; h.id='hp'+i; h.textContent='💚'; hp.appendChild(h); }
   const dots=$('#coreDots');
   SHRINES.forEach(s=>{
     const d=document.createElement('div'); d.className='cdot'; d.id='cd_'+s.id; d.textContent=s.icon;
@@ -33,7 +35,25 @@ function refreshHud(){
   const rh=$('#runeHud'), rn=$('#runeN');
   if(rh){ rn.textContent=runeCount()+' / 10'; rh.style.display = runeCount()>0 ? '' : 'none'; }
   SHRINES.forEach(s=>$('#cd_'+s.id).classList.toggle('got', !!STATE.cores[s.id]));
-  for(let i=0;i<3;i++){ const e=$('#hp'+i); if(e) e.classList.toggle('off', i>=STATE.hp); }
+  const maxH = 3 + (STATE.upgrades?.maxHp || 0);
+  for(let i=0;i<5;i++){
+    const e=$('#hp'+i);
+    if(e){
+      e.style.display = i < maxH ? '' : 'none';
+      e.classList.toggle('off', i>=STATE.hp);
+    }
+  }
+  /* 신속 버프 뱃지 */
+  const buffBadge = $('#speedBuffBadge');
+  if(buffBadge){
+    const remainMs = (STATE.speedBoostEnd || 0) - performance.now();
+    if(remainMs > 0){
+      buffBadge.style.display = 'inline-block';
+      buffBadge.textContent = '⚡' + Math.ceil(remainMs/1000) + 's';
+    } else {
+      buffBadge.style.display = 'none';
+    }
+  }
   $('#qTitle').textContent=STATE.quest.t; $('#qBody').innerHTML=STATE.quest.b;
 }
 function setQuest(t,b){ STATE.quest={t,b}; refreshHud(); }
@@ -45,14 +65,217 @@ function toast(icon, text, ms){
                    setTimeout(()=>d.remove(),420); }, ms||2400);
 }
 
+/* ══════════════ 에너지 파편 교환소 시스템 ══════════════ */
+const SHOP_ITEMS = [
+  {
+    id: 'heal',
+    name: '에너지 치유',
+    icon: '💚',
+    desc: '파편의 순수한 빛으로 즉시 체력을 1칸 회복합니다.',
+    cost: ()=> 2,
+    canBuy: ()=> STATE.hp < (3 + (STATE.upgrades.maxHp || 0)),
+    buyText: ()=> '치유 (파편 2개)',
+    onBuy: ()=>{
+      STATE.hp++;
+      AUDIO.sfx('core');
+      toast('💚', '체력이 1칸 회복되었습니다!');
+    }
+  },
+  {
+    id: 'weapon',
+    name: '빛의 무기 승급',
+    icon: '🔮',
+    desc: '무기 단계를 승급합니다. (2단계: 트윈 볼트 / 3단계: 트리플 볼트 / 4단계: 태양의 정화포 광역 폭발)',
+    cost: ()=>{
+      const lv = STATE.upgrades.weaponLevel || 1;
+      if(lv === 1) return 10;
+      if(lv === 2) return 18;
+      if(lv === 3) return 28;
+      return 999;
+    },
+    isMax: ()=> (STATE.upgrades.weaponLevel || 1) >= 4,
+    canBuy: ()=> (STATE.upgrades.weaponLevel || 1) < 4,
+    level: ()=>{
+      const lv = STATE.upgrades.weaponLevel || 1;
+      const titles = ['기본 1발', '트윈 볼트', '트리플 볼트', '태양의 정화포'];
+      return lv + '단 (' + titles[lv-1] + ')';
+    },
+    buyText: ()=>{
+      const lv = STATE.upgrades.weaponLevel || 1;
+      if(lv >= 4) return '최대 승급 완료';
+      const costs = [10, 18, 28];
+      const nextNames = ['트윈 볼트', '트리플 볼트', '태양의 정화포'];
+      return nextNames[lv-1] + ' 승급 (파편 ' + costs[lv-1] + '개)';
+    },
+    onBuy: ()=>{
+      STATE.upgrades.weaponLevel = (STATE.upgrades.weaponLevel || 1) + 1;
+      AUDIO.sfx('right');
+      const lv = STATE.upgrades.weaponLevel;
+      const names = ['', '트윈 볼트', '트리플 볼트', '태양의 정화포'];
+      toast('🔮', '무기 승급 완료! ' + lv + '단계 [' + names[lv] + ']');
+    }
+  },
+  {
+    id: 'rapidFire',
+    name: '정화 가속 렌즈',
+    icon: '💠',
+    desc: '빛의 발사 간격을 40% 대폭 단축하여 빠른 속도로 연사합니다.',
+    cost: ()=> 8,
+    isMax: ()=> !!STATE.upgrades.rapidFire,
+    canBuy: ()=> !STATE.upgrades.rapidFire,
+    buyText: ()=> STATE.upgrades.rapidFire ? '장착 완료' : '장착 (파편 8개)',
+    onBuy: ()=>{
+      STATE.upgrades.rapidFire = true;
+      AUDIO.sfx('right');
+      toast('💠', '정화 가속 렌즈 장착! 연사 속도가 빨라졌습니다.');
+    }
+  },
+  {
+    id: 'speed',
+    name: '신속의 오라',
+    icon: '🏃',
+    desc: '45초 동안 이동 및 달리기 속도가 35% 빨라집니다.',
+    cost: ()=> 3,
+    canBuy: ()=> true,
+    buyText: ()=> '활성화 (파편 3개)',
+    onBuy: ()=>{
+      const curEnd = Math.max(performance.now(), STATE.speedBoostEnd || 0);
+      STATE.speedBoostEnd = curEnd + 45000;
+      AUDIO.sfx('spark');
+      toast('⚡', '신속의 오라 발동! (45초간 이동속도 +35%)');
+    }
+  },
+  {
+    id: 'magnet',
+    name: '파편 자기장 코어',
+    icon: '🧲',
+    desc: '반경 18m 내의 에너지 파편을 플레이어에게 자동으로 끌어당깁니다.',
+    cost: ()=> 8,
+    isMax: ()=> !!STATE.upgrades.magnet,
+    canBuy: ()=> !STATE.upgrades.magnet,
+    buyText: ()=> STATE.upgrades.magnet ? '활성화 완료' : '해금 (파편 8개)',
+    onBuy: ()=>{
+      STATE.upgrades.magnet = true;
+      AUDIO.sfx('right');
+      toast('🧲', '파편 자기장 코어 해금! 주변 파편을 끌어당깁니다.');
+    }
+  },
+  {
+    id: 'maxHp',
+    name: '생명력 코어 확장',
+    icon: '💖',
+    desc: '최대 체력(하트)을 영구히 1칸 늘립니다. (최대 5칸까지 확장)',
+    cost: ()=> ((STATE.upgrades.maxHp || 0) === 0 ? 10 : 20),
+    isMax: ()=> (STATE.upgrades.maxHp || 0) >= 2,
+    canBuy: ()=> (STATE.upgrades.maxHp || 0) < 2,
+    level: ()=> (STATE.upgrades.maxHp || 0) + ' / 2',
+    buyText: ()=>{
+      const lv = STATE.upgrades.maxHp || 0;
+      if(lv >= 2) return '최대 단계 달성';
+      return '확장 (파편 ' + (lv === 0 ? 10 : 20) + '개)';
+    },
+    onBuy: ()=>{
+      STATE.upgrades.maxHp = (STATE.upgrades.maxHp || 0) + 1;
+      STATE.hp++;
+      AUDIO.sfx('core');
+      toast('💖', '최대 체력이 ' + (3 + STATE.upgrades.maxHp) + '칸으로 확장되었습니다!');
+    }
+  },
+  {
+    id: 'lightPower',
+    name: '정화의 빛 증폭기',
+    icon: '⚡',
+    desc: '정화의 빛(F키) 공격력을 영구히 1 강화합니다. (오염 몬스터 신속 정화)',
+    cost: ()=> ((STATE.upgrades.lightPower || 0) === 0 ? 12 : 24),
+    isMax: ()=> (STATE.upgrades.lightPower || 0) >= 2,
+    canBuy: ()=> (STATE.upgrades.lightPower || 0) < 2,
+    level: ()=> (STATE.upgrades.lightPower || 0) + ' / 2',
+    buyText: ()=>{
+      const lv = STATE.upgrades.lightPower || 0;
+      if(lv >= 2) return '최대 단계 달성';
+      return '강화 (파편 ' + (lv === 0 ? 12 : 24) + '개)';
+    },
+    onBuy: ()=>{
+      STATE.upgrades.lightPower = (STATE.upgrades.lightPower || 0) + 1;
+      AUDIO.sfx('right');
+      toast('⚡', '정화의 빛 위력이 ' + STATE.upgrades.lightPower + '단계 강화되었습니다!');
+    }
+  }
+];
+
+function renderShop(){
+  const sList = $('#shopItemList');
+  if(!sList) return;
+  $('#shopSparkN').textContent = STATE.sparks;
+  sList.innerHTML = '';
+  SHOP_ITEMS.forEach(it => {
+    const card = document.createElement('div');
+    const isMax = it.isMax ? it.isMax() : false;
+    card.className = 'shopCard' + (isMax ? ' maxed' : '');
+    const cost = it.cost ? it.cost() : 0;
+    const canAfford = STATE.sparks >= cost;
+    const canBuy = it.canBuy ? it.canBuy() : true;
+    const lvTag = it.level ? '<span class="shopCardLevel">' + it.level() + '</span>' : '';
+    
+    card.innerHTML = 
+      '<div class="shopCardInfo">' +
+        '<div class="shopCardIco">' + it.icon + '</div>' +
+        '<div class="shopCardTxt">' +
+          '<div class="shopCardName">' + it.name + ' ' + lvTag + '</div>' +
+          '<div class="shopCardDesc">' + it.desc + '</div>' +
+        '</div>' +
+      '</div>' +
+      '<div class="shopCardAction">' +
+        '<button class="btn gold shopBuyBtn" ' + ((!canAfford || !canBuy || isMax) ? 'disabled' : '') + '>' +
+          it.buyText() +
+        '</button>' +
+      '</div>';
+    const btn = card.querySelector('.shopBuyBtn');
+    if(btn && canAfford && canBuy && !isMax){
+      btn.onclick = () => {
+        if(STATE.sparks < cost) return;
+        STATE.sparks -= cost;
+        it.onBuy();
+        save();
+        refreshHud();
+        renderShop();
+      };
+    }
+    sList.appendChild(card);
+  });
+}
+
+function toggleShop(){
+  if($('#sparkShop').classList.contains('on')) closeShop();
+  else openShop();
+}
+function openShop(){
+  if(STATE.mode === 'shrine') return;
+  $('#sparkShop').classList.add('on');
+  $('#help').classList.remove('on');
+  $('#minimap').classList.remove('big');
+  if(typeof syncPanelBtns==='function') syncPanelBtns();
+  renderShop();
+}
+function closeShop(){
+  $('#sparkShop').classList.remove('on');
+  if(typeof syncPanelBtns==='function') syncPanelBtns();
+}
+
 /* ══════════════ 입력 ══════════════ */
 const keys={};
 addEventListener('keydown', e=>{
   const k=e.key.toLowerCase();
   keys[k]=true;
   if(k==='h'&&STATE.mode!=='shrine'){ toggleHelp(); }
+  if(k==='b'&&STATE.mode!=='shrine'){ toggleShop(); }
   if(k==='k'){ AUDIO.init(); AUDIO.toggle(); refreshSnd(); }
-  if(k==='escape'){ if(STATE.mode==='shrine') closeShrine(); else if(STATE.mode==='dialog') endDialog(); else closeHelp(); }
+  if(k==='escape'){
+    if($('#sparkShop').classList.contains('on')) closeShop();
+    else if(STATE.mode==='shrine') closeShrine();
+    else if(STATE.mode==='dialog') endDialog();
+    else closeHelp();
+  }
   if(k==='m'&&STATE.mode==='play'){ toggleMap(); }
   if(k==='e'&&STATE.mode==='play'){ interact(); }
   if((k==='f')&&STATE.mode==='play'){ firePurify(); }
@@ -61,7 +284,8 @@ addEventListener('keydown', e=>{
 });
 addEventListener('keyup', e=>{ keys[e.key.toLowerCase()]=false; });
 
-const CAM={yaw:0, pitch:0.34, dist:12, tYaw:0, tPitch:0.34, tDist:12};
+const CAM={yaw:0, pitch:0.34, dist:12, tYaw:0, tPitch:0.34, tDist:12, shake:0};
+function triggerCamShake(amt){ CAM.shake = Math.max(CAM.shake, amt); }
 const TOUCH={x:0, z:0, mag:0, run:false, jump:false};
 const cv=renderer.domElement;
 
@@ -152,25 +376,33 @@ addEventListener('wheel', e=>{ if(STATE.mode!=='play')return; CAM.tDist=clamp(CA
     $('#dialog .next').textContent='화면 탭 — 다음 ▶';
   }
 })();
-/* ── 도움말 · 지도 여닫기 (키보드와 터치 버튼이 공유) ── */
+/* ── 도움말 · 지도 · 파편 교환소 여닫기 (키보드와 터치 버튼이 공유) ── */
 function syncPanelBtns(){
-  const h=$('#tHelp'), m=$('#tMap');
+  const h=$('#tHelp'), m=$('#tMap'), s=$('#tShop');
   if(h) h.classList.toggle('on', $('#help').classList.contains('on'));
   if(m) m.classList.toggle('on', $('#minimap').classList.contains('big'));
+  if(s) s.classList.toggle('on', $('#sparkShop').classList.contains('on'));
 }
 function closeHelp(){ $('#help').classList.remove('on'); syncPanelBtns(); }
 function toggleHelp(){
   const on = !$('#help').classList.contains('on');
   $('#help').classList.toggle('on', on);
-  if(on) $('#minimap').classList.remove('big');   // 둘이 겹치지 않게
+  if(on){ $('#minimap').classList.remove('big'); $('#sparkShop').classList.remove('on'); }
   syncPanelBtns();
 }
 function toggleMap(){
   const mm=$('#minimap'), on = !mm.classList.contains('big');
   mm.classList.toggle('big', on);
-  if(on) $('#help').classList.remove('on');
+  if(on){ $('#help').classList.remove('on'); $('#sparkShop').classList.remove('on'); }
   resizeMinimap(); buildWarp(); syncPanelBtns();
 }
+(function initShopEvents(){
+  const sh=$('#sparkHud'), sx=$('#shopX'), sm=$('#sparkShop'), ts=$('#tShop');
+  if(sh) sh.onclick = ()=> toggleShop();
+  if(sx) sx.onclick = ()=> closeShop();
+  if(sm) sm.onclick = e => { if(e.target === sm) closeShop(); };
+  if(ts) ts.onclick = ()=> toggleShop();
+})();
 addEventListener('resize', ()=>{
   camera.aspect=innerWidth/innerHeight; camera.updateProjectionMatrix();
   renderer.setSize(innerWidth, innerHeight);
@@ -363,7 +595,9 @@ function animate(){
       moveX = (ix*cy + iz*sy);
       moveZ = (iz*cy - ix*sy);
       P.yaw = Math.atan2(moveX, moveZ);
-      P.speed = lerp(P.speed, 11.2*run*Math.max(TOUCH.mag>0.12?TOUCH.mag:1,0.35), 0.2);
+      const isSpeedBoost = performance.now() < (STATE.speedBoostEnd || 0);
+      const boostMult = isSpeedBoost ? 1.35 : 1.0;
+      P.speed = lerp(P.speed, 11.2*run*boostMult*Math.max(TOUCH.mag>0.12?TOUCH.mag:1,0.35), 0.2);
     } else P.speed = lerp(P.speed, 0, 0.28);
 
     if(P.speed>0.05){
@@ -398,6 +632,12 @@ function animate(){
     let cx=P.pos.x + Math.sin(CAM.yaw)*Math.cos(cp)*cd;
     let cz=P.pos.z + Math.cos(CAM.yaw)*Math.cos(cp)*cd;
     let cyy=P.pos.y + 2.7 + Math.sin(cp)*cd;
+    if(CAM.shake > 0){
+      CAM.shake = Math.max(0, CAM.shake - dt * 2.8);
+      cx += (Math.random()-0.5) * CAM.shake * 2.2;
+      cyy += (Math.random()-0.5) * CAM.shake * 1.8;
+      cz += (Math.random()-0.5) * CAM.shake * 2.2;
+    }
     const gcy=hAt(cx,cz)+2.2; if(cyy<gcy) cyy=gcy;
     camera.position.set(cx,cyy,cz);
     camera.lookAt(P.pos.x, P.pos.y+1.9, P.pos.z);
@@ -477,21 +717,46 @@ function animate(){
     }
 
     /* 파편 수집 — 인스턴스 행렬을 매 프레임 갱신한다 (드로우콜 1개) */
+    const hasMagnet = !!(STATE.upgrades && STATE.upgrades.magnet);
     for(let i=0;i<sparks.length;i++){
       const sp=sparks[i];
       if(sp.got){ SPK.makeScale(0,0,0); SPARK_MESH.setMatrixAt(i, SPK); continue; }
       sp.rot += dt*1.6;
-      const y = sp.base + Math.sin(t*1.6+sp.ph)*0.36;
+      let y = sp.base + Math.sin(t*1.6+sp.ph)*0.36;
+      const dSp = Math.hypot(sp.x-P.pos.x, sp.z-P.pos.z);
+      /* 파편 자기장 코어: 주변 18m 내 파편을 플레이어에게 끌어당김 */
+      if(hasMagnet && dSp < 18){
+        const pull = 14*dt;
+        sp.x = lerp(sp.x, P.pos.x, pull);
+        sp.z = lerp(sp.z, P.pos.z, pull);
+        sp.base = lerp(sp.base, P.pos.y + 1.2, pull);
+        y = sp.base;
+      }
       SPK.makeRotationY(sp.rot);
       SPK.setPosition(sp.x, y, sp.z);
       SPARK_MESH.setMatrixAt(i, SPK);
-      if(Math.hypot(sp.x-P.pos.x, sp.z-P.pos.z)<2.6 && Math.abs(y-P.pos.y)<4){
+      if(dSp<2.6 && Math.abs(y-P.pos.y)<4){
         sp.got=true; STATE.sparks++; save(); refreshHud();
         AUDIO.sfx('step');
-        toast('✨','에너지 파편 +1 &nbsp;<span style="color:#6d7f92;font-weight:700">(3개 = 사당 힌트 1회)</span>',1700);
+        toast('✨','에너지 파편 +1', 1500);
       }
     }
     SPARK_MESH.instanceMatrix.needsUpdate = true;
+
+    /* 신속 버프 뱃지 실시간 갱신 */
+    if(STATE.speedBoostEnd > 0){
+      const rem = STATE.speedBoostEnd - performance.now();
+      const badge = $('#speedBuffBadge');
+      if(badge){
+        if(rem > 0){
+          badge.style.display = 'inline-block';
+          badge.textContent = '⚡' + Math.ceil(rem/1000) + 's';
+        } else {
+          badge.style.display = 'none';
+          STATE.speedBoostEnd = 0;
+        }
+      }
+    }
   }
 
   /* 멀리 있는 것은 그리지 않는다 — 섬이 넓어지면서 한 화면에 들어오는 물체가
@@ -637,8 +902,7 @@ $('#startBtn').addEventListener('click', ()=>{
     else setQuest('열 개의 사당을 깨워라','남은 사당에서 시련을 풀고 코어를 모으자.'); }
   else toast('🎒','시장 하람에게 먼저 말을 걸어보자',3200);
 });
-$$('#monLv .chip').forEach((c,i)=>c.addEventListener('click',()=>setMonLevel(i)));
-setMonLevel(STATE.monLevel);
+STATE.monLevel = 2;
 
 /* ══════════════ 진행 초기화 ══════════════ */
 /* 저장은 이 기기·이 브라우저 안에만 있다(localStorage). 지우면 되돌릴 수 없으므로

@@ -831,19 +831,18 @@ const MIXSRC=[
 ];
 /* 도시의 하루 전력 수요 (0시~23시) */
 const MIXDEM=[46,42,40,39,40,44,54,66,74,76,75,74,73,72,72,74,80,88,96,98,92,80,66,54];
-const MIX_BUD0=100, MIX_CO2=18, MIX_SHARE=0.32, MIX_MAX=3;
+const MIX_BUD0=84, MIX_CO2=13, MIX_SHARE=0.25, MIX_MAX=3;
 /* 숨은 룬 조각 1개당 설비 예산 +5억 — 탐색에 대한 보상 */
 const mixBudget = ()=> MIX_BUD0 + runeCount()*RUNE_BONUS;
 
-PUZ_HINT.mix='한 가지에 몰아주면 절대 풀리지 않습니다. <b>열 가지를 하나씩 골고루</b> 세우고, 모자라면 <b>바이오를 하나 더</b> 지어 보세요. '+
-  '(예시: 태양광1 · 태양열1 · 풍력1 · 수력1 · 지열1 · 해양1 · <b>바이오2</b> · 폐기물1 · 수소1 · 연료전지1 → 비용 85억, CO₂ 17톤, 최대 비중 21%)';
+PUZ_HINT.mix='기본 예산 84억, CO₂ 13톤, 최대 비중 25%를 동시에 만족하려면 특정 발전소에 의존하지 않고 <b>기저부하(지열·해양)와 주간 재생에너지(태양광·풍력), 저녁 피크용(수력·수소 ESS)</b>을 골고루 섞어야 합니다. 모자란 예산은 섬 곳곳의 <b>고대 룬(개당 +5억)</b>을 찾으면 수월해집니다.';
 
 PUZZLES.mix=api=>{
-  api.mission('하루 24시간, 도시의 불이 한 번도 꺼지지 않는 전력 계획을 세워라.',
-    ['낮(10~15시)의 수요를 채우기',
-     '밤·새벽(22~05시)도 채우기 — 태양광은 밤에 <b>0</b>이 된다',
-     '24시간 전부 채우고 <b>설비 비용 '+mixBudget()+'억</b> 이내로',
-     '한 에너지원 비중 <b>32% 이하</b> · CO₂ <b>18톤 이하</b> — 골고루 섞기']);
+  api.mission('하루 24시간, 도시의 불이 꺼지지 않고 전력망이 안정된 계획을 세워라.',
+    ['낮(10~15시) 및 저녁 피크(18~21시) 전력 수요 충족 (덕커브 극복)',
+     '24시간 전 구간 무정전 공급 & 과잉 발전(135% 초과) 억제',
+     '설비 예산 '+mixBudget()+'억 이내로 달성',
+     'CO₂ 13톤 이하 · 단일 에너지 최대 비중 25% 이하 (골고루 믹스)']);
 
   const st={n:new Array(MIXSRC.length).fill(0)};
   const ctrl=$('#shCtrl');
@@ -871,7 +870,7 @@ PUZZLES.mix=api=>{
   rs.textContent='↺ 처음부터 다시 배치';
   rs.onclick=()=>rows.forEach(o=>o.set(0));
   ctrl.appendChild(rs);
-  const upd=api.stats([{k:'부족 시간',v:'24 h'},{k:'비용',v:'0 / '+mixBudget()},{k:'CO₂',v:'0 / '+MIX_CO2},{k:'최대 비중',v:'—'}]);
+  const upd=api.stats([{k:'공급 상태',v:'24 h 부족'},{k:'비용',v:'0 / '+mixBudget()+'억'},{k:'CO₂',v:'0 / '+MIX_CO2+'톤'},{k:'최대 비중',v:'—'}]);
   if(runeCount()>0) api.note('🔷 <b>고대 룬 '+runeCount()+'개</b>를 찾아 설비 예산이 <b>'+MIX_BUD0+'억 → '+mixBudget()+'억</b>으로 늘었습니다.');
   api.note('발전소 1기의 <b>설비용량</b>은 종류마다 다르고, 실제 발전량은 시간대별 조건(햇빛·바람·조석·수요)에 따라 달라집니다. '+
            '오른쪽 그래프의 <b>흰 점선이 수요</b>, <b>색이 채워진 부분이 공급</b>입니다.');
@@ -886,28 +885,36 @@ PUZZLES.mix=api=>{
     MIXSRC.forEach((s,i)=>{ const c=st.n[i]; if(!c) return;
       cost+=s.cost*c; co2+=s.co2*c; units+=c;
       for(let h=0;h<24;h++){ const v=s.cap*c*s.p(h); sup[h]+=v; per[i]+=v; tot+=v; } });
-    let short=0, minR=9;
-    for(let h=0;h<24;h++){ const r=sup[h]/MIXDEM[h]; if(r<minR) minR=r; if(sup[h]<MIXDEM[h]-0.01) short++; }
+    let short=0, overCount=0, minR=9;
+    for(let h=0;h<24;h++){
+      const r=sup[h]/MIXDEM[h]; if(r<minR) minR=r;
+      if(sup[h]<MIXDEM[h]-0.01) short++;
+      if(sup[h]>MIXDEM[h]*1.35+0.01) overCount++;
+    }
     const share = tot>0 ? Math.max.apply(null,per)/tot : 0;
-    const dayOK   = [10,11,12,13,14,15].every(h=>sup[h]>=MIXDEM[h]);
-    const nightOK = [22,23,0,1,2,3,4,5].every(h=>sup[h]>=MIXDEM[h]);
-    if(dayOK) api.step(0);
-    if(dayOK&&nightOK) api.step(1);
+    const dayOK   = [10,11,12,13,14,15].every(h=>sup[h]>=MIXDEM[h]-0.01);
+    const peakOK  = [18,19,20,21].every(h=>sup[h]>=MIXDEM[h]-0.01);
+    const overOK  = overCount<=2;
+    if(dayOK&&peakOK) api.step(0);
+    if(short===0&&overOK) api.step(1);
     const BUD=mixBudget();
-    if(short===0&&cost<=BUD) api.step(2);
-    if(short===0&&cost<=BUD&&co2<=MIX_CO2&&share<=MIX_SHARE) api.step(3);
-    upd([short+' h', cost+' / '+BUD, co2+' / '+MIX_CO2, tot>0?Math.round(share*100)+' %':'—']);
+    if(short===0&&overOK&&cost<=BUD) api.step(2);
+    if(short===0&&overOK&&cost<=BUD&&co2<=MIX_CO2&&share<=MIX_SHARE) api.step(3);
+    upd([short>0 ? short+' h 부족' : (overCount>2 ? overCount+' h 과잉' : '정상 무정전'), cost+' / '+BUD+'억', co2+' / '+MIX_CO2+'톤', tot>0?Math.round(share*100)+' % (≤25%)':'—']);
 
     /* ── 배경 ── */
     bgGrid(g,'#16283f','#0b1524');
     TX(g,'🏙️ 빛의 도시 — 하루 24시간 전력 수요와 공급',L,44,20,'#dce8f5');
-    TX(g,'흰 점선 = 도시가 필요한 전력 · 색칠된 부분 = 우리가 만든 전력',L,66,13,'#8fa9c2');
+    TX(g,'흰 점선 = 도시 수요 · 색칠 = 공급 · 붉은색 = 부족 · 주황색 = 과잉(135% 초과)',L,66,13,'#8fa9c2');
 
-    /* ── 부족 구간 표시 ── */
+    /* ── 부족 및 과잉 구간 표시 ── */
     for(let h=0;h<24;h++){
-      if(sup[h]>=MIXDEM[h]-0.01) continue;
       const w=(R-L)/23;
-      g.fillStyle='rgba(255,90,90,.16)'; g.fillRect(X(h)-w/2, T-8, w, B-T+8);
+      if(sup[h]<MIXDEM[h]-0.01){
+        g.fillStyle='rgba(255,90,90,.18)'; g.fillRect(X(h)-w/2, T-8, w, B-T+8);
+      } else if(sup[h]>MIXDEM[h]*1.35+0.01){
+        g.fillStyle='rgba(255,180,50,.18)'; g.fillRect(X(h)-w/2, T-8, w, B-T+8);
+      }
     }
     /* ── 격자 ── */
     g.strokeStyle='rgba(255,255,255,.09)'; g.lineWidth=1;
@@ -971,16 +978,17 @@ PUZZLES.mix=api=>{
     /* ── 게이지 3종 ── */
     gauge(g,L,476,232,14, cost/BUD, cost<=BUD?'#79c8f2':'#ff7a7a','💰 설비 비용 (억원)'+(runeCount()?' 🔷+'+(runeCount()*RUNE_BONUS):''), cost+' / '+BUD);
     gauge(g,L+266,476,232,14, co2/MIX_CO2, co2<=MIX_CO2?'#7ae0a8':'#ff7a7a','🌫️ CO₂ (톤/일)', co2+' / '+MIX_CO2);
-    gauge(g,L+532,476,232,14, share/MIX_SHARE, share<=MIX_SHARE?'#f4c04f':'#ff7a7a','⚖️ 최대 비중', (tot>0?Math.round(share*100):0)+' / 32 %');
+    gauge(g,L+532,476,232,14, share/MIX_SHARE, share<=MIX_SHARE?'#f4c04f':'#ff7a7a','⚖️ 최대 비중 (25% 상한)', (tot>0?Math.round(share*100):0)+' / 25 %');
 
     /* ── 상태 메시지 ── */
     let msg, col2;
     if(units===0){ msg='왼쪽에서 발전소를 하나씩 세워 보자. 한 종류만으로는 절대 하루를 채울 수 없다.'; col2='#9fb6cd'; }
-    else if(short>0){ msg='⚠ 하루 중 '+short+'시간 동안 전기가 모자란다. (빨간 구간)'; col2='#ff9f9f'; }
-    else if(cost>BUD){ msg='⚠ 24시간은 채웠지만 예산을 '+(cost-BUD)+'억 초과했다.'+(runeCount()<10?' (숨은 룬을 더 찾으면 예산이 늘어난다)':''); col2='#ff9f9f'; }
-    else if(co2>MIX_CO2){ msg='⚠ CO₂가 '+(co2-MIX_CO2)+'톤 초과. 폐기물·바이오를 줄이고 재생에너지를 늘려 보자.'; col2='#ff9f9f'; }
-    else if(share>MIX_SHARE){ msg='⚠ 한 에너지원에 '+Math.round(share*100)+'%나 의존하고 있다. 더 골고루 섞자.'; col2='#ffd764'; }
-    else { msg='✓ 24시간 완벽 공급 · 예산과 CO₂ 이내 · 골고루 섞인 에너지 믹스 완성!'; col2='#7ae0a8'; }
+    else if(short>0){ msg='⚠ 하루 중 '+short+'시간 동안 전기가 모자란다. (빨간 구간 확인)'; col2='#ff9f9f'; }
+    else if(!overOK){ msg='⚠ 공급량이 수요의 135%를 초과하는 과잉 발전 구간이 '+overCount+'시간 발생! 전력망 계통 과부하 위험.'; col2='#ff9f9f'; }
+    else if(cost>BUD){ msg='⚠ 24시간은 채웠지만 예산을 '+(cost-BUD)+'억 초과했다.'+(runeCount()<10?' (섬의 숨은 룬을 찾으면 예산이 늘어난다)':''); col2='#ff9f9f'; }
+    else if(co2>MIX_CO2){ msg='⚠ CO₂가 '+(co2-MIX_CO2)+'톤 초과! 폐기물·바이오 비중을 줄이고 무탄소 재생에너지를 배치하자.'; col2='#ff9f9f'; }
+    else if(share>MIX_SHARE){ msg='⚠ 한 에너지원에 '+Math.round(share*100)+'%나 편중되었다. (상한 25%) 더 다양한 전원으로 분산하자.'; col2='#ffd764'; }
+    else { msg='✓ 24시간 무정전 공급 · 과잉 억제 · 예산 & 저탄소 & 고른 비중의 완벽한 스마트 에너지 믹스 달성!'; col2='#7ae0a8'; }
     TX(g,msg,L,524,15,col2);
   }};
 };

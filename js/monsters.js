@@ -13,21 +13,9 @@ const MTYPES = {
          fact:'지구를 데우는 대표 <b>온실가스</b>. 눈에 보이지 않아 더 위험합니다.' },
 };
 const MON = { pool:[], bolts:[], drops:[], zones:[], seen:{}, spawnT:0, ready:false };
-/* 몬스터 밀도 — 0 없음 · 1 적게(기본) · 2 보통 */
-const MON_LEVELS = [
-  {name:'없음',   cap:0, every:99,  desc:'몬스터가 나오지 않습니다. 사당 학습에만 집중할 때.'},
-  {name:'적게',   cap:3, every:2.6, desc:'가끔 한두 마리. 이동이 아주 편합니다.'},
-  {name:'적당히', cap:4, every:1.9, desc:'적게와 보통의 중간. 이동이 심심하지 않을 만큼만 나옵니다. (기본)'},
-  {name:'보통',   cap:6, every:1.2, desc:'꾸준히 나타납니다. 자유 탐험·과제용.'},
-];
-function monLv(){ return MON_LEVELS[STATE.monLevel!==undefined?STATE.monLevel:2]; }
-function setMonLevel(i){
-  STATE.monLevel=i; save();
-  if(i===0) MON.pool.forEach(m=>{ m.alive=false; m.g.visible=false; m.shadow.visible=false; });
-  MON.spawnT=1.2;
-  document.querySelectorAll('#monLv .chip').forEach((c,k)=>c.classList.toggle('sel',k===i));
-  const d=$('#monLvDesc'); if(d) d.textContent=MON_LEVELS[i].desc;
-}
+/* 몬스터 밀도 — 보통으로 고정 (출현빈도 고정 및 전역 활성화) */
+function monLv(){ return { cap: LOWQ ? 7 : 10, every: 1.1 }; }
+function setMonLevel(i){ STATE.monLevel=2; save(); }
 const SAFE_R = 32;                       // 빛의 도시 안전지대
 
 /* ── 오염 지대 (사당마다 하나, 사당을 깨우면 걷힌다) ── */
@@ -35,7 +23,7 @@ const SAFE_R = 32;                       // 빛의 도시 안전지대
   const ringMat = new THREE.MeshBasicMaterial({color:ART.smog.ring, transparent:true, opacity:0.55, depthWrite:false});
   const puffGeo = new THREE.IcosahedronGeometry(1,0);
   const puffMat = new THREE.MeshLambertMaterial({color:ART.smog.puff, transparent:true, opacity:0.72, flatShading:true, depthWrite:false});
-  const PER = LOWQ?18:34;
+  const PER = LOWQ?8:12;
   const puffs = new THREE.InstancedMesh(puffGeo, puffMat, SHRINES.length*PER);
   puffs.frustumCulled=false; scene.add(puffs);
   const D=new THREE.Object3D();
@@ -43,7 +31,7 @@ const SAFE_R = 32;                       // 빛의 도시 안전지대
     const ring=new THREE.Mesh(new THREE.TorusGeometry(23,1.15,5,44), ringMat);
     ring.rotation.x=Math.PI/2; ring.position.set(s.x, s.gy+0.5, s.z); scene.add(ring);
     const list=[];
-    for(let k=0;k<PER;k++) list.push({a:rnd()*6.283, rr:4+rnd()*18, h:1.0+rnd()*6.0, sc:0.45+rnd()*0.75, sp:0.10+rnd()*0.26});
+    for(let k=0;k<PER;k++) list.push({a:rnd()*6.283, rr:20.5+rnd()*4.5, h:1.0+rnd()*3.0, sc:0.45+rnd()*0.4, sp:0.10+rnd()*0.2});
     MON.zones.push({ s, ring, list, base:zi*PER, fade:1 });
   });
   MON.puffs=puffs; MON.PER=PER; MON.D=D;
@@ -62,24 +50,24 @@ function makeMonster(type){
   }
   const bs = blobShadow(T.r*2.6); scene.add(bs); bs.visible=false;
   g.visible = false; scene.add(g);
-  return {g, shadow:bs, body:built.body, wisp, type:T, alive:false, hp:0, ph:rnd()*6.28, die:0, vx:0, vz:0};
+  return {g, shadow:bs, body:built.body, wisp, type:T, alive:false, hp:0, ph:rnd()*6.28, die:0, vx:0, vz:0, stun:0};
 }
 
 (function initMon(){
-  const N=LOWQ?6:8;
+  const N=LOWQ?10:15;
   const kinds=['smog','dust','co2'];
   for(let i=0;i<N;i++) MON.pool.push(makeMonster(kinds[i%3]));
-  // 정화의 빛 (탄환)
+  // 정화의 빛 (탄환) — 멀티샷을 위해 18개 생성
   const bg=new THREE.IcosahedronGeometry(0.42,0);
-  for(let i=0;i<7;i++){
+  for(let i=0;i<18;i++){
     const m=new THREE.Mesh(bg, new THREE.MeshBasicMaterial({color:0xfff0b0}));
     const halo=new THREE.Mesh(new THREE.IcosahedronGeometry(0.8,0), new THREE.MeshBasicMaterial({color:0xffe08a, transparent:true, opacity:0.35}));
     m.add(halo); m.visible=false; scene.add(m);
-    MON.bolts.push({m, on:false, tgt:null, life:0});
+    MON.bolts.push({m, halo, on:false, tgt:null, life:0, isExplode:false, dmg:1});
   }
   // 정화하면 나오는 파편
   const dg=new THREE.IcosahedronGeometry(0.34,0);
-  for(let i=0;i<10;i++){
+  for(let i=0;i<14;i++){
     const m=new THREE.Mesh(dg, new THREE.MeshBasicMaterial({color:0xffd75e}));
     m.visible=false; scene.add(m);
     MON.drops.push({m, on:false, t:0});
@@ -92,42 +80,98 @@ function inPollution(x,z){
   for(const zn of MON.zones){ if(zoneAlive(zn) && Math.hypot(x-zn.s.x, z-zn.s.z)<23) return zn; }
   return null;
 }
-/* 빛의 세기는 모은 코어에 비례 */
-const lightDmg   = ()=> 1 + Math.floor(coreCount()/4);
-const lightRange = ()=> 15 + coreCount()*0.9;
-const lightCool  = ()=> Math.max(0.28, 0.52 - coreCount()*0.022);
+/* 빛의 세기는 모은 코어에 비례 + 파편 교환소 업그레이드 */
+const maxPlayerHp = ()=> 3 + (STATE.upgrades?.maxHp || 0);
+const weaponLevel = ()=> (STATE.upgrades?.weaponLevel || 1);
+const lightDmg   = ()=> 1 + Math.floor(coreCount()/4) + (STATE.upgrades?.lightPower || 0);
+const lightRange = ()=> 18 + coreCount()*1.0;
+const lightCool  = ()=>{
+  const base = Math.max(0.22, 0.46 - coreCount()*0.02);
+  return STATE.upgrades?.rapidFire ? base * 0.6 : base;
+};
 
-/* ── 발사 ── */
+/* ── 발사 (무기 단계별 멀티샷 & 폭발포) ── */
 let fireCD=0;
 function firePurify(){
   AUDIO.sfx('light');
   if(fireCD>0 || STATE.mode!=='play' || !MON.ready) return;
-  let best=null, bd=lightRange();
+
+  const wLv = weaponLevel();
+  const maxTargets = wLv >= 3 ? 3 : (wLv === 2 ? 2 : 1);
+  const isExplode = wLv >= 4;
+  const range = lightRange();
+
+  /* 주변 살아있는 적 탐색 */
+  const candidates = [];
   for(const m of MON.pool){
-    if(!m.alive||m.die>0) continue;
-    const d=Math.hypot(m.g.position.x-P.pos.x, m.g.position.z-P.pos.z);
-    if(d<bd){ bd=d; best=m; }
+    if(!m.alive || m.die>0) continue;
+    const d = Math.hypot(m.g.position.x-P.pos.x, m.g.position.z-P.pos.z);
+    if(d < range){ candidates.push({ tgt:m, dist:d, pos:m.g.position, isBoss:false }); }
   }
-  /* 보스가 있으면 보스를 우선 노린다 (핵이 열렸을 때만 피해가 들어간다) */
+  candidates.sort((a,b)=> a.dist - b.dist);
+
+  /* 보스 우선 타겟팅 */
+  let bossTgt = null;
   if(typeof BOSS!=='undefined' && BOSS.alive && BOSS.die<=0){
-    const db=Math.hypot(BOSS.g.position.x-P.pos.x, BOSS.g.position.z-P.pos.z);
-    if(db < lightRange()+10){
-      const b2=MON.bolts.find(b=>!b.on);
-      if(b2){
-        b2.on=true; b2.tgt={g:BOSS.g, alive:true, die:0, __boss:true}; b2.life=1.6;
-        b2.m.visible=true; b2.m.position.set(P.pos.x, P.pos.y+2.0, P.pos.z);
-        fireCD=lightCool();
-        P.yaw=Math.atan2(BOSS.g.position.x-P.pos.x, BOSS.g.position.z-P.pos.z);
-        return;
-      }
+    const db = Math.hypot(BOSS.g.position.x-P.pos.x, BOSS.g.position.z-P.pos.z);
+    if(db < range + 12){
+      bossTgt = { tgt:{g:BOSS.g, alive:true, die:0, __boss:true}, dist:db, pos:BOSS.g.position, isBoss:true };
     }
   }
-  if(!best){ fireCD=0.18; return; }
-  const b=MON.bolts.find(b=>!b.on); if(!b) return;
-  b.on=true; b.tgt=best; b.life=1.4;
-  b.m.visible=true; b.m.position.set(P.pos.x, P.pos.y+2.0, P.pos.z);
-  fireCD=lightCool();
-  P.yaw = Math.atan2(best.g.position.x-P.pos.x, best.g.position.z-P.pos.z);
+
+  const fireList = [];
+  if(bossTgt){
+    for(let k=0; k<maxTargets; k++) fireList.push(bossTgt);
+  } else if(candidates.length > 0){
+    for(let k=0; k<maxTargets; k++){
+      fireList.push(candidates[k % candidates.length]);
+    }
+  }
+
+  if(fireList.length === 0){
+    fireCD = 0.16;
+    return;
+  }
+
+  /* 첫 번째 타겟 방향으로 캐릭터 회전 */
+  const p0 = fireList[0].pos;
+  P.yaw = Math.atan2(p0.x-P.pos.x, p0.z-P.pos.z);
+
+  /* 볼트 발사 */
+  fireList.forEach((it, idx)=>{
+    const b = MON.bolts.find(o=>!o.on);
+    if(!b) return;
+    b.on = true;
+    b.tgt = it.tgt;
+    b.life = 1.6;
+    b.isExplode = isExplode;
+    b.dmg = lightDmg();
+    b.m.visible = true;
+
+    /* 무기 레벨별 크기 & 색상 연출 */
+    const sc = wLv >= 4 ? 1.5 : (wLv >= 3 ? 1.25 : (wLv === 2 ? 1.12 : 1.0));
+    b.m.scale.setScalar(sc);
+    const col = wLv >= 4 ? 0xffb732 : (wLv >= 3 ? 0x4fe6ff : (wLv === 2 ? 0xfff0b0 : 0xfff0b0));
+    b.m.material.color.setHex(col);
+
+    const off = (idx - (fireList.length - 1)/2) * 0.42;
+    const sx = P.pos.x + Math.sin(P.yaw + off + Math.PI/2)*0.45;
+    const sz = P.pos.z + Math.cos(P.yaw + off + Math.PI/2)*0.45;
+    b.m.position.set(sx, P.pos.y + 1.9, sz);
+  });
+
+  fireCD = lightCool();
+}
+
+function explodePurify(pos, dmg){
+  AUDIO.sfx('core');
+  for(const m of MON.pool){
+    if(!m.alive || m.die>0) continue;
+    const d = Math.hypot(m.g.position.x - pos.x, m.g.position.z - pos.z);
+    if(d <= 6.5){
+      hitMonster(m, Math.max(1, Math.floor(dmg * 0.85)));
+    }
+  }
 }
 
 /* ── 매 프레임 ── */
@@ -155,30 +199,35 @@ function updateMonsters(dt, t){
 
   if(STATE.mode!=='play') return;
 
-  /* 스폰 */
+  /* 스폰 — 사당 오염 지대 + 이동 경로/필드 전역 스폰 */
   MON.spawnT-=dt;
   if(MON.spawnT<=0){
     const LV=monLv();
     MON.spawnT=LV.every;
-    const cap=Math.min(LV.cap, LOWQ?4:6);
+    const cap=Math.min(LV.cap, LOWQ?6:9);
     const live=MON.pool.filter(m=>m.alive).length;
     if(live<cap){
-      const near=MON.zones.filter(zn=>zoneAlive(zn) && Math.hypot(P.pos.x-zn.s.x,P.pos.z-zn.s.z)<62);
-      if(near.length){
+      const near=MON.zones.filter(zn=>zoneAlive(zn) && Math.hypot(P.pos.x-zn.s.x,P.pos.z-zn.s.z)<65);
+      let spawnCenter = null;
+      if(near.length && rnd()<0.6){
         const zn=near[(rnd()*near.length)|0];
-        for(let tryN=0; tryN<8; tryN++){
-          const a=rnd()*6.283, rr=6+rnd()*17;
-          const x=zn.s.x+Math.cos(a)*rr, z=zn.s.z+Math.sin(a)*rr;
-          const dp=Math.hypot(x-P.pos.x, z-P.pos.z);
-          if(dp<19||dp>40) continue;
-          if(Math.hypot(x,z)<SAFE_R) continue;
-          const y=hAt(x,z); if(y<1.2) continue;
-          const m=MON.pool.find(o=>!o.alive); if(!m) break;
-          m.alive=true; m.die=0; m.hp=m.type.hp; m.g.visible=true; m.shadow.visible=true;
-          m.g.position.set(x, y+m.type.r+0.5, z);
-          m.g.scale.setScalar(1); m.body.material.opacity=0.94;
-          break;
-        }
+        spawnCenter = { x:zn.s.x, z:zn.s.z, rMin:5, rMax:20 };
+      } else {
+        // 사당 사이 길목 및 들판: 플레이어 주변 반경 18~36m
+        spawnCenter = { x:P.pos.x, z:P.pos.z, rMin:18, rMax:36 };
+      }
+      for(let tryN=0; tryN<10; tryN++){
+        const a=rnd()*6.283, rr=spawnCenter.rMin + rnd()*(spawnCenter.rMax-spawnCenter.rMin);
+        const x=spawnCenter.x+Math.cos(a)*rr, z=spawnCenter.z+Math.sin(a)*rr;
+        const dp=Math.hypot(x-P.pos.x, z-P.pos.z);
+        if(dp<16||dp>42) continue;
+        if(Math.hypot(x,z)<SAFE_R) continue;
+        const y=hAt(x,z); if(y<1.2) continue;
+        const m=MON.pool.find(o=>!o.alive); if(!m) break;
+        m.alive=true; m.die=0; m.hp=m.type.hp; m.g.visible=true; m.shadow.visible=true;
+        m.g.position.set(x, y+m.type.r+0.5, z);
+        m.g.scale.setScalar(1); m.body.material.opacity=0.94;
+        break;
       }
     }
   }
@@ -200,11 +249,19 @@ function updateMonsters(dt, t){
     const dx=P.pos.x-p.x, dz=P.pos.z-p.z, d=Math.hypot(dx,dz);
     // 도시 안전지대·먼 거리면 소멸
     if(Math.hypot(p.x,p.z)<SAFE_R-2 || d>58){ m.alive=false; m.g.visible=false; m.shadow.visible=false; continue; }
-    const spd=m.type.spd*(d<26?1:0.55);
-    const wob = m.type.key==='dust' ? Math.sin(t*7+m.ph)*0.55 : 0;
-    if(d>0.5){
-      p.x += (dx/d)*spd*dt - (dz/d)*wob*dt*spd;
-      p.z += (dz/d)*spd*dt + (dx/d)*wob*dt*spd;
+
+    /* 피격 스턴 중이면 이동 멈춤 & 스케일 복원 */
+    if(m.stun>0){
+      m.stun -= dt;
+      m.g.scale.lerp(new THREE.Vector3(1,1,1), dt*12);
+    } else {
+      m.g.scale.lerp(new THREE.Vector3(1,1,1), dt*12);
+      const spd=m.type.spd*(d<26?1:0.55);
+      const wob = m.type.key==='dust' ? Math.sin(t*7+m.ph)*0.55 : 0;
+      if(d>0.5){
+        p.x += (dx/d)*spd*dt - (dz/d)*wob*dt*spd;
+        p.z += (dz/d)*spd*dt + (dx/d)*wob*dt*spd;
+      }
     }
     const gy=hAt(p.x,p.z)+m.type.r+0.5;
     p.y = lerp(p.y, gy + (m.type.key==='co2'?1.4:0) + Math.abs(Math.sin(t*3+m.ph))*0.45, 0.16);
@@ -218,8 +275,8 @@ function updateMonsters(dt, t){
       const a=t*1.6+i*2.1+m.ph, rr=m.type.r*1.5;
       w.position.set(Math.cos(a)*rr, Math.sin(a*1.3)*m.type.r*0.6, Math.sin(a)*rr);
     });
-    /* 접촉 피해 */
-    if(!inv && d < m.type.r+1.25 && Math.abs(p.y-P.pos.y)<4){ hurtPlayer(m); }
+    /* 접촉 피해 — 닿는 순간 즉각 판정 */
+    if(!inv && d < m.type.r+0.95 && Math.abs(p.y-P.pos.y)<3.2){ hurtPlayer(m); }
   }
 
   /* 빛 탄환 */
@@ -230,9 +287,15 @@ function updateMonsters(dt, t){
     if(!tg || !tg.alive || tg.die>0 || b.life<=0){ b.on=false; b.m.visible=false; continue; }
     const tp=tg.g.position, bp=b.m.position;
     const dx=tp.x-bp.x, dy=tp.y-bp.y, dz=tp.z-bp.z, d=Math.hypot(dx,dy,dz);
-    const step=34*dt;
+    const step=36*dt;
     if(d<=step+0.6){
-      if(tg.__boss) hitBoss(); else hitMonster(tg);
+      if(tg.__boss) hitBoss();
+      else {
+        hitMonster(tg, b.dmg);
+        if(b.isExplode){
+          explodePurify(tp, b.dmg);
+        }
+      }
       b.on=false; b.m.visible=false; continue;
     }
     bp.x+=dx/d*step; bp.y+=dy/d*step; bp.z+=dz/d*step;
@@ -250,7 +313,8 @@ function updateMonsters(dt, t){
 
   /* 안전지대 회복 */
   const bossOn = (typeof BOSS!=='undefined' && BOSS.alive && BOSS.die<=0);
-  if(!bossOn && Math.hypot(P.pos.x,P.pos.z)<SAFE_R && STATE.hp<3){
+  const mHp = maxPlayerHp();
+  if(!bossOn && Math.hypot(P.pos.x,P.pos.z)<SAFE_R && STATE.hp<mHp){
     STATE.heal=(STATE.heal||0)+dt;
     if(STATE.heal>4){ STATE.heal=0; STATE.hp++; refreshHud(); toast('💚','빛의 도시에서 기운을 되찾았다',1800); }
   } else STATE.heal=0;
@@ -262,15 +326,24 @@ function updateMonsters(dt, t){
   }
 }
 
-function hitMonster(m){
-  m.hp -= lightDmg();
+function hitMonster(m, customDmg){
+  const dmg = customDmg !== undefined ? customDmg : lightDmg();
+  m.hp -= dmg;
+  AUDIO.sfx('spark');   // 즉각적인 명쾌한 타격음
+  // 몬스터 즉시 피격 넉백 & 스턴 & 찌그러짐
+  const dx=m.g.position.x-P.pos.x, dz=m.g.position.z-P.pos.z, d=Math.hypot(dx,dz)||1;
+  m.g.position.x += dx/d*1.8;
+  m.g.position.z += dz/d*1.8;
+  m.stun = 0.25;
+  m.g.scale.set(1.35, 0.7, 1.35);
+  if(typeof triggerCamShake==='function') triggerCamShake(0.12);
   m.body.material.color.setHex(0xffffff);
-  setTimeout(()=>{ if(m.body) m.body.material.color.setHex(m.type.col); }, 90);
+  setTimeout(()=>{ if(m.body) m.body.material.color.setHex(m.type.col); }, 80);
   if(m.hp<=0){
     m.die=0.45;
     if(!MON.seen[m.type.key]){ MON.seen[m.type.key]=true;
       toast('🌀','<b>'+m.type.name+'</b> 정화! '+m.type.fact, 5200); }
-    if(rnd()<0.45){
+    if(rnd()<0.5){
       const dp=MON.drops.find(d=>!d.on);
       if(dp){ dp.on=true; dp.t=0; dp.m.visible=true; dp.m.position.copy(m.g.position); }
     }
@@ -280,12 +353,20 @@ function hurtPlayer(m){
   AUDIO.sfx('hurt');
   STATE.hp--; STATE.inv=1.8; refreshHud();
   const dx=P.pos.x-m.g.position.x, dz=P.pos.z-m.g.position.z, d=Math.hypot(dx,dz)||1;
-  P.pos.x += dx/d*2.6; P.pos.z += dz/d*2.6; P.vy=4.2; P.onGround=false;
+  // 플레이어 즉각 넉백
+  P.pos.x += dx/d*2.8; P.pos.z += dz/d*2.8; P.vy=4.6; P.onGround=false;
+  // 몬스터도 반대 방향 즉각 넉백 + 스턴
+  m.g.position.x -= dx/d*3.2;
+  m.g.position.z -= dz/d*3.2;
+  m.stun = 0.45;
+  m.g.scale.set(1.4, 0.6, 1.4);
+  // 즉각적인 카메라 쉐이크
+  if(typeof triggerCamShake==='function') triggerCamShake(0.38);
   const f=$('#hurt'); f.classList.remove('on'); void f.offsetWidth; f.classList.add('on');
   if(STATE.hp<=0) downPlayer();
 }
 function downPlayer(){
-  STATE.hp=3; STATE.inv=2.4; refreshHud();
+  STATE.hp=maxPlayerHp(); STATE.inv=2.4; refreshHud();
   P.pos.set(0, hAt(0,7), 7); P.vy=0; CAM.tYaw=0;
   MON.pool.forEach(m=>{ m.alive=false; m.g.visible=false; m.shadow.visible=false; });
   const f=$('#downFlash'); f.classList.remove('on'); void f.offsetWidth; f.classList.add('on');

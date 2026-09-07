@@ -129,7 +129,7 @@ function nearShrine(x,z,r){ for(const s of SHRINES) if(Math.hypot(x-s.x,z-s.z)<r
     const p = spot();
     if(p.y<1.6 || p.y>26) continue;
     if(rnd() > p.b.tree) continue;
-    if(nearShrine(p.x,p.z,15)) continue;
+    if(nearShrine(p.x,p.z,24)) continue;
     const t = treeInstance(p.x, p.y-0.2, p.z, rnd);
     const ci = FOLI.indexOf(p.b.foliage[(rnd()*p.b.foliage.length)|0]);
     trunks.push(t.trunk);
@@ -140,7 +140,7 @@ function nearShrine(x,z,r){ for(const s of SHRINES) if(Math.hypot(x-s.x,z-s.z)<r
     const p = spot();
     if(p.y<1.6 || p.y>20) continue;
     if(rnd() > p.b.tree*0.9 + p.b.grass*0.12) continue;
-    if(nearShrine(p.x,p.z,12)) continue;
+    if(nearShrine(p.x,p.z,24)) continue;
     bushes[(rnd()*2)|0].push([p.x, p.y+0.42, p.z, 0.5+rnd()*0.7, rnd()*6.283]);
   }
   /* 바위 — 화산·갯벌·고원에서 많아진다 */
@@ -148,7 +148,7 @@ function nearShrine(x,z,r){ for(const s of SHRINES) if(Math.hypot(x-s.x,z-s.z)<r
     const p = spot();
     if(p.y<-0.6 || p.y>40) continue;
     if(rnd()*1.4 > p.b.rock) continue;
-    if(nearShrine(p.x,p.z,11)) continue;
+    if(nearShrine(p.x,p.z,24)) continue;
     const ri = ROCKC.indexOf(p.b.rockC);
     rocks[ri].push([p.x, p.y+0.15, p.z, 0.6+rnd()*1.8, (rnd()-0.5)*0.3, rnd()*6.283, (rnd()-0.5)*0.3,
                     0.55+rnd()*0.9, 0.7+rnd()*1.6]);
@@ -158,6 +158,7 @@ function nearShrine(x,z,r){ for(const s of SHRINES) if(Math.hypot(x-s.x,z-s.z)<r
     const p = spot();
     if(p.y<1.8 || p.y>18) continue;
     if(rnd()*1.6 > p.b.grass) continue;
+    if(nearShrine(p.x,p.z,24)) continue;
     flowers[(rnd()*4)|0].push([p.x, p.y+0.28, p.z, 1, 0]);
   }
 

@@ -70,8 +70,13 @@
 #downFlash.on{animation:downF 1.5s ease-out}
 @keyframes downF{0%{opacity:1}100%{opacity:0}}
 @media (prefers-reduced-motion:reduce){#hurt.on,#downFlash.on{animation-duration:.01s}}
-#sparkHud{position:absolute;top:16px;right:16px;padding:10px 14px;display:flex;align-items:center;gap:8px}
+#sparkHud{position:absolute;top:16px;right:16px;padding:10px 14px;display:flex;align-items:center;gap:8px;
+  pointer-events:auto;cursor:pointer;user-select:none;transition:transform .18s,box-shadow .18s,border-color .18s}
+#sparkHud:hover{transform:translateY(-2px);box-shadow:0 6px 18px rgba(244,192,79,.38);border-color:#d49f30}
 #sparkHud b{font-family:var(--num);font-size:18px}
+.buffBadge{font-size:11px;font-weight:900;background:linear-gradient(135deg,#ff9f43,#ee5253);color:#fff;
+  padding:2px 7px;border-radius:6px;margin-left:4px;animation:pulseBuff 1.2s infinite alternate}
+@keyframes pulseBuff{0%{opacity:.85;transform:scale(.95)}100%{opacity:1;transform:scale(1.05)}}
 #runeHud{position:absolute;top:66px;right:16px;padding:8px 13px;display:flex;align-items:center;gap:8px}
 #runeHud b{font-family:var(--num);font-size:17px;color:#2b7f9c}
 /* #hud 는 pointer-events:none 이라 안의 요소는 스스로 켜야 눌린다.
@@ -448,3 +453,33 @@ body.touch #dialog{bottom:24px;width:min(560px,64vw);left:calc(50% + 20px)}
   background:linear-gradient(90deg,#8d5b6b,#c0392b);transition:width .25s}
 #bossBarWrap.open{border-color:#c2691f;box-shadow:0 0 0 3px rgba(244,192,79,.35),0 10px 30px rgba(10,20,35,.28)}
 @media (max-width:820px){ #bossBar{top:auto;bottom:96px;width:min(400px,86vw)} }
+
+/* ───────── 에너지 파편 교환소 모달 ───────── */
+#sparkShop{position:fixed;inset:0;z-index:55;display:none;align-items:center;justify-content:center;padding:20px;
+  background:rgba(9,17,30,.82);backdrop-filter:blur(7px)}
+#sparkShop.on{display:flex}
+.shopPanel{width:min(580px,94vw);max-height:90vh;display:flex;flex-direction:column;padding:0;overflow:hidden;animation:rise .3s cubic-bezier(.2,.9,.3,1)}
+.shopHead{display:flex;align-items:center;justify-content:space-between;padding:18px 22px 14px;background:linear-gradient(180deg,#fff,#f8f4e9);border-bottom:2px solid var(--line)}
+.shopTtl{display:flex;align-items:center;gap:12px}
+.shopIcon{font-size:26px;background:#fff8e6;border:2px solid #e2c068;border-radius:12px;width:44px;height:44px;display:grid;place-items:center;flex:0 0 auto}
+.shopHead h3{font-family:var(--disp);font-size:18.5px;margin:0 0 2px}
+.shopHead p{font-size:12px;color:var(--muted);font-weight:700;margin:0}
+.shopClose{background:none;border:none;font-size:22px;color:var(--muted);cursor:pointer;padding:4px 8px;border-radius:8px;font-weight:900}
+.shopClose:hover{color:var(--ink);background:rgba(0,0,0,.05)}
+.shopSparkBar{display:flex;align-items:center;gap:8px;padding:10px 22px;background:#fff4d3;border-bottom:1px solid #ebd7a3;font-size:13.5px;font-weight:800}
+.shopSparkBar b{font-family:var(--num);font-size:20px;color:#c2691f}
+.shopItems{padding:14px 18px;overflow-y:auto;display:flex;flex-direction:column;gap:10px;max-height:56vh}
+.shopCard{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 14px;background:#fff;border:2px solid var(--line);border-radius:14px;transition:border-color .2s,box-shadow .2s}
+.shopCard:hover{border-color:#f4c04f;box-shadow:0 4px 14px rgba(244,192,79,.2)}
+.shopCard.maxed{background:#f8f9fa;border-color:#e1e5eb;opacity:.8}
+.shopCardInfo{display:flex;align-items:center;gap:12px;flex:1;min-width:0}
+.shopCardIco{font-size:24px;width:40px;height:40px;border-radius:10px;background:#faf8f2;display:grid;place-items:center;flex:0 0 auto;border:1px solid var(--line)}
+.shopCardTxt{flex:1;min-width:0}
+.shopCardName{font-weight:900;font-size:14px;display:flex;align-items:center;gap:6px}
+.shopCardLevel{font-size:11px;font-weight:800;color:#c2691f;background:#fff1cb;padding:1px 6px;border-radius:6px}
+.shopCardDesc{font-size:12px;color:#596d80;font-weight:600;margin-top:2px;line-height:1.4}
+.shopCardAction{flex:0 0 auto}
+.shopBuyBtn{display:flex;align-items:center;gap:5px;padding:8px 14px;font-size:13px;font-weight:900;border-radius:10px;cursor:pointer}
+.shopBuyBtn:disabled{opacity:.45;cursor:not-allowed;filter:grayscale(1)}
+.shopFoot{padding:10px 18px 14px;border-top:1px solid var(--line);background:#faf8f2;text-align:center;color:var(--muted);font-weight:700;font-size:11.5px}
+
