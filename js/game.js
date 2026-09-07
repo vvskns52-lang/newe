@@ -529,7 +529,7 @@ function drawMinimap(){
   // NPC
   npcObjs.forEach(n=>{ mg.beginPath(); mg.arc(n.data.x*S,n.data.z*S,3.4,0,6.283); mg.fillStyle='#ffe08a'; mg.fill(); });
   // 플레이어
-  mg.save(); mg.translate(P.pos.x*S, P.pos.z*S); mg.rotate(-P.yaw);
+  mg.save(); mg.translate(P.pos.x*S, P.pos.z*S); mg.rotate(Math.PI - P.yaw);
   mg.beginPath(); mg.moveTo(0,-9); mg.lineTo(6.4,7); mg.lineTo(0,3.6); mg.lineTo(-6.4,7); mg.closePath();
   mg.fillStyle='#ff5b5b'; mg.fill(); mg.strokeStyle='#fff'; mg.lineWidth=2; mg.stroke(); mg.restore();
   mg.restore();
