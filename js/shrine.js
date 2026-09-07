@@ -216,6 +216,10 @@ $('#clearBtn').onclick=()=>{
     if(sid && typeof spiritOf!=='undefined' && spiritOf[sid]){
       setTimeout(()=>{ if(STATE.mode==='play') talkSpirit(spiritOf[sid]); }, 1400);
     }
+    /* 코어 5개 — 스모그 타이탄이 도시를 덮친다.
+       정령의 축하 대사가 떠 있을 수 있으므로 "대기"만 걸어 두고,
+       대화가 끝나 조작이 돌아왔을 때 루프에서 등장시킨다. */
+    if(coreCount()>=5 && !STATE.bossDone && !STATE.bossCleared) STATE.bossPending = true;
   }
 };
 $('#shClose').onclick=()=>closeShrine();

@@ -7,7 +7,7 @@
 const ART = {
   /* ── 하늘 · 대기 ── */
   sky:  { top:0x2f6fae, mid:0x8ecbe8, bot:0xffe6c0 },
-  fog:  { color:0xb6dcec, near:150, far:340 },
+  fog:  { color:0xb6dcec, near:180, far:395 },
   /* ── 조명 ── */
   sun:  { color:0xffefd0, intensity:0.82, dir:[70,110,50] },
   hemi: { sky:0xc3e0fb, ground:0x8f7856, intensity:0.40 },
@@ -60,7 +60,7 @@ const glow = (color, o) => new THREE.MeshBasicMaterial(Object.assign({color}, o|
 
 /* ── 하늘 돔 ── */
 function makeSky(){
-  const geo = new THREE.SphereGeometry(430, 32, 20);
+  const geo = new THREE.SphereGeometry(460, 32, 20);
   const mat = new THREE.ShaderMaterial({
     side:THREE.BackSide, depthWrite:false,
     uniforms:{ top:{value:new THREE.Color(ART.sky.top)}, mid:{value:new THREE.Color(ART.sky.mid)},

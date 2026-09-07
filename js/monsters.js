@@ -28,7 +28,7 @@ function setMonLevel(i){
   document.querySelectorAll('#monLv .chip').forEach((c,k)=>c.classList.toggle('sel',k===i));
   const d=$('#monLvDesc'); if(d) d.textContent=MON_LEVELS[i].desc;
 }
-const SAFE_R = 24;                       // 빛의 도시 안전지대
+const SAFE_R = 32;                       // 빛의 도시 안전지대
 
 /* ── 오염 지대 (사당마다 하나, 사당을 깨우면 걷힌다) ── */
 (function buildZones(){
@@ -107,6 +107,20 @@ function firePurify(){
     if(!m.alive||m.die>0) continue;
     const d=Math.hypot(m.g.position.x-P.pos.x, m.g.position.z-P.pos.z);
     if(d<bd){ bd=d; best=m; }
+  }
+  /* 보스가 있으면 보스를 우선 노린다 (핵이 열렸을 때만 피해가 들어간다) */
+  if(typeof BOSS!=='undefined' && BOSS.alive && BOSS.die<=0){
+    const db=Math.hypot(BOSS.g.position.x-P.pos.x, BOSS.g.position.z-P.pos.z);
+    if(db < lightRange()+10){
+      const b2=MON.bolts.find(b=>!b.on);
+      if(b2){
+        b2.on=true; b2.tgt={g:BOSS.g, alive:true, die:0, __boss:true}; b2.life=1.6;
+        b2.m.visible=true; b2.m.position.set(P.pos.x, P.pos.y+2.0, P.pos.z);
+        fireCD=lightCool();
+        P.yaw=Math.atan2(BOSS.g.position.x-P.pos.x, BOSS.g.position.z-P.pos.z);
+        return;
+      }
+    }
   }
   if(!best){ fireCD=0.18; return; }
   const b=MON.bolts.find(b=>!b.on); if(!b) return;
@@ -217,7 +231,10 @@ function updateMonsters(dt, t){
     const tp=tg.g.position, bp=b.m.position;
     const dx=tp.x-bp.x, dy=tp.y-bp.y, dz=tp.z-bp.z, d=Math.hypot(dx,dy,dz);
     const step=34*dt;
-    if(d<=step+0.6){ hitMonster(tg); b.on=false; b.m.visible=false; continue; }
+    if(d<=step+0.6){
+      if(tg.__boss) hitBoss(); else hitMonster(tg);
+      b.on=false; b.m.visible=false; continue;
+    }
     bp.x+=dx/d*step; bp.y+=dy/d*step; bp.z+=dz/d*step;
   }
 
@@ -232,7 +249,8 @@ function updateMonsters(dt, t){
   }
 
   /* 안전지대 회복 */
-  if(Math.hypot(P.pos.x,P.pos.z)<SAFE_R && STATE.hp<3){
+  const bossOn = (typeof BOSS!=='undefined' && BOSS.alive && BOSS.die<=0);
+  if(!bossOn && Math.hypot(P.pos.x,P.pos.z)<SAFE_R && STATE.hp<3){
     STATE.heal=(STATE.heal||0)+dt;
     if(STATE.heal>4){ STATE.heal=0; STATE.hp++; refreshHud(); toast('💚','빛의 도시에서 기운을 되찾았다',1800); }
   } else STATE.heal=0;

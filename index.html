@@ -21,7 +21,7 @@
     <div class="crest">🔆</div>
     <h1>에너지 <em>크로니클</em><br>빛을 되찾는 열 개의 사당</h1>
     <p>화석연료의 시대가 저물자 대륙의 불이 꺼졌다.<br>
-       섬 곳곳에 잠든 <b>열 개의 발전 사당</b>을 깨워 에너지 코어를 모으고,<br>
+       여덟 지역에 잠든 <b>열 개의 발전 사당</b>을 깨워 에너지 코어를 모으고,<br>
        중앙의 <b>빛의 도시</b>에 다시 전기를 밝혀라.</p>
     <div class="keys">
       <span class="kcap"><b>W A S D</b> 이동</span>
@@ -37,6 +37,7 @@
       <span class="kcap"><b>화면 쓸기</b> 시점 · <b>두 손가락</b> 줌</span>
       <span class="kcap"><b>E 버튼</b> 사당 입장 · 대화</span>
       <span class="kcap"><b>빛 버튼</b> 오염 몬스터 정화</span>
+      <span class="kcap">오른쪽 위 <b>🗺️ 지도</b> · <b>❓ 도움말</b> · <b>🔊 소리</b></span>
     </div>
     <div id="loadbar"><i></i></div>
     <button class="btn gold" id="startBtn" style="font-size:18px;padding:14px 34px">모험 시작하기</button>
@@ -67,7 +68,16 @@
     <h4 id="qTitle">빛의 도시로</h4>
     <p id="qBody">도시 광장의 시장에게 말을 걸어 무슨 일이 벌어졌는지 들어보자.</p>
   </div>
-  <div id="minimap"><canvas id="mmCv" width="356" height="356"></canvas></div>
+  <div id="minimap"><canvas id="mmCv" width="356" height="356"></canvas>
+    <div id="warpPanel"><div class="warpHead">✨ 빠른 이동 <small>깨운 사당으로 바로 갑니다</small></div>
+      <div id="warpList"></div></div>
+  </div>
+  <div id="bossBar">
+    <div id="bossBarWrap" class="panel">
+      <div class="bossTop"><span class="bossIcon">☠️</span><b>스모그 타이탄</b><i id="bossPhase"></i></div>
+      <div class="bossTrack"><i id="bossHp"></i></div>
+    </div>
+  </div>
   <div id="prompt" class="panel"><span class="ekey">E</span><span class="txt"></span></div>
   <div id="toast"></div>
   <div id="hint">H · 도움말 &nbsp;|&nbsp; M · 지도 확대 &nbsp;|&nbsp; 마우스 휠 · 줌</div>
@@ -82,7 +92,12 @@
     <button class="tbtn" id="tJump">점프<small>▲</small></button>
     <button class="tbtn big" id="tE">E<small>상호작용</small></button>
   </div>
-  <button id="fsBtn" title="전체화면">⛶</button>
+  <!-- 태블릿에는 키보드가 없다. PC의 H(도움말)·M(지도)·K(소리)를 버튼으로 준다. -->
+  <div id="tTop">
+    <button class="tsq" id="tMap" aria-label="지도 크게 보기">🗺️<small>지도</small></button>
+    <button class="tsq" id="tHelp" aria-label="조작 방법 도움말">❓<small>도움말</small></button>
+    <button class="tsq" id="fsBtn" aria-label="전체 화면">⛶<small>전체</small></button>
+  </div>
 </div>
 
 <div id="hurt"></div>
@@ -138,26 +153,41 @@
     <button class="helpClose" id="helpX2" aria-label="닫기">✕</button>
   </div>
   <div class="helpBody">
+    <!-- 키보드용 / 터치용 두 벌. body.touch 일 때 자동으로 바뀐다 (ui.css 참고).
+         태블릿에는 키보드가 없으므로 WASD 표를 보여 줘 봐야 소용이 없다. -->
     <table>
-      <tr><td>W A S D</td><td>앞·뒤·좌·우 이동 (카메라 기준)</td></tr>
-      <tr><td>마우스 드래그</td><td>카메라 회전 · 휠로 줌</td></tr>
-      <tr><td>Shift</td><td>달리기</td></tr>
-      <tr><td>Space</td><td>점프 (대화 중엔 다음 대사)</td></tr>
-      <tr><td>E</td><td>사당 입장 · 대화 · 파편 줍기</td></tr>
-      <tr><td>F / 클릭</td><td>정화의 빛 (가까운 몬스터 자동 조준)</td></tr>
-      <tr><td>M</td><td>전체 지도 보기</td></tr>
-      <tr><td>Esc</td><td>사당·대화 나가기</td></tr>
-      <tr><td>H</td><td>이 도움말 열기/닫기</td></tr>
-      <tr><td>태블릿</td><td>왼쪽 조이스틱 이동(끝까지 밀면 달리기)<br>화면 쓸기 시점 · 두 손가락 줌 · 오른쪽 E/점프</td></tr>
+      <tr class="kbd"><td>W A S D</td><td>앞·뒤·좌·우 이동 (카메라 기준)</td></tr>
+      <tr class="kbd"><td>마우스 드래그</td><td>카메라 회전 · 휠로 줌</td></tr>
+      <tr class="kbd"><td>Shift</td><td>달리기</td></tr>
+      <tr class="kbd"><td>Space</td><td>점프 (대화 중엔 다음 대사)</td></tr>
+      <tr class="kbd"><td>E</td><td>사당 입장 · 대화 · 파편 줍기</td></tr>
+      <tr class="kbd"><td>F / 클릭</td><td>정화의 빛 (가까운 몬스터 자동 조준)</td></tr>
+      <tr class="kbd"><td>M</td><td>전체 지도 · 빠른 이동</td></tr>
+      <tr class="kbd"><td>K</td><td>소리 끄고 켜기</td></tr>
+      <tr class="kbd"><td>Esc</td><td>사당·대화 나가기</td></tr>
+      <tr class="kbd"><td>H</td><td>이 도움말 열기/닫기</td></tr>
+
+      <tr class="tch"><td>왼쪽 조이스틱</td><td>이동 — <b>끝까지 밀면 달리기</b></td></tr>
+      <tr class="tch"><td>화면 쓸기</td><td>시점 회전 · 두 손가락으로 줌</td></tr>
+      <tr class="tch"><td><b>E</b> 버튼</td><td>사당 입장 · 대화 · 파편 줍기</td></tr>
+      <tr class="tch"><td><b>빛</b> 버튼</td><td>정화의 빛 (가까운 몬스터 자동 조준)</td></tr>
+      <tr class="tch"><td><b>점프</b> 버튼</td><td>점프 (대화 중엔 다음 대사)</td></tr>
+      <tr class="tch"><td>🗺️ 지도</td><td>전체 지도 · 빠른 이동<br>오른쪽 아래 <b>작은 지도를 눌러도</b> 열립니다</td></tr>
+      <tr class="tch"><td>❓ 도움말</td><td>이 창 열기 — <b>바깥 어두운 곳</b>을 눌러도 닫힙니다</td></tr>
+      <tr class="tch"><td>🔊 소리</td><td>배경음악·효과음 끄고 켜기</td></tr>
+      <tr class="tch"><td>⛶ 전체화면</td><td>화면을 꽉 채웁니다 (수업 중 권장)</td></tr>
     </table>
 
     <h4>알아두면 좋은 것</h4>
     <ul class="helpList">
-      <li><b>🌫️ 오염 몬스터</b> — 정화의 빛(F)으로 물리칩니다. 코어가 많을수록 빛이 강해지고, 사당을 깨우면 그 지역의 오염이 걷힙니다.</li>
+      <li><b>🌫️ 오염 몬스터</b> — 정화의 빛(<span class="kbdOnly">F</span><span class="tchOnly">빛 버튼</span>)으로 물리칩니다. 코어가 많을수록 빛이 강해지고, 사당을 깨우면 그 지역의 오염이 걷힙니다.</li>
       <li><b>💚 체력</b> — 다하면 빛의 도시에서 깨어납니다. 진행 상황은 그대로예요.</li>
       <li><b>✨ 에너지 파편</b> — 3개를 모으면 사당 안에서 힌트를 한 번 쓸 수 있습니다.</li>
-      <li><b>👻 수호 정령</b> — 사당 입구 옆에 떠 있습니다. 처음 다가가면 먼저 말을 걸고, 시련을 깨면 축하해 줍니다. E로 다시 대화할 수 있어요.</li>
+      <li><b>🗺️ 여덟 지역</b> — 바람 언덕 · 물의 계곡 · 불의 분지 · 황금 들판 · 되살림 단지 · 수소 해안 · 햇빛 고원 · 조수 갯벌. 땅 색과 풍경, 세워진 구조물이 지역마다 다릅니다.</li>
+      <li><b>✨ 빠른 이동</b> — <span class="kbdOnly">M으로</span><span class="tchOnly">🗺️ 지도 버튼으로</span> 지도를 열면 이미 깨운 사당으로 바로 갈 수 있습니다. 아직 안 깬 사당으로는 못 가요 — 처음 가는 길은 직접 걸어야 합니다.</li>
+      <li><b>👻 수호 정령</b> — 사당 입구 옆에 떠 있습니다. 처음 다가가면 먼저 말을 걸고, 시련을 깨면 축하해 줍니다. <span class="kbdOnly">E</span><span class="tchOnly">E 버튼으로</span> 다시 대화할 수 있어요.</li>
       <li><b>🔷 고대 룬</b> — 사당 뒤편에 하나씩 숨어 있습니다. 모을수록 관제탑 예산 +5억 (10개면 100 → 150억).</li>
+      <li><b>☠️ 스모그 타이탄</b> — 코어를 <b>5개</b> 모으면 도시 남쪽 어귀에 나타납니다. 평소엔 매연에 싸여 빛이 통하지 않고, <b>가슴의 핵이 열린 순간</b>에만 정화의 빛(<span class="kbdOnly">F</span><span class="tchOnly">빛 버튼</span>)이 들어갑니다. 열릴 때를 노려 쏘고, 팔을 휘두르면 물러나세요.</li>
       <li><b>💠 코어 10개</b> — 도시에 불이 켜지고, 광장에 <b>에너지 관제탑</b>(마지막 시련)이 열립니다.</li>
     </ul>
 
@@ -187,8 +217,10 @@
 <script src="js/audio.js"></script>
 <script src="js/art.js"></script>
 <script src="js/world.js"></script>
+<script src="js/regions.js"></script>
 <script src="js/actors.js"></script>
 <script src="js/monsters.js"></script>
+<script src="js/boss.js"></script>
 <script src="js/game.js"></script>
 <script src="js/shrine.js"></script>
 <script src="js/puzzles.js"></script>

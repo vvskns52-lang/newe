@@ -25,10 +25,12 @@ function buildShrine(s){
   const G=new THREE.Group(); G.position.set(s.x, s.gy, s.z);
   const col=new THREE.Color(s.col);
   const stone=matte(ART.shrine.stone), stone2=matte(ART.shrine.stone2);
+  /* 멀리서 감출 구조물 — 이름표와 코어는 밖에 두어 길잡이로 남긴다 */
+  const struct=new THREE.Group(); G.add(struct);
   // 기단
-  const gsh=blobShadow(24); gsh.position.y=0.03; G.add(gsh);
-  const pad=new THREE.Mesh(new THREE.CylinderGeometry(8.2,9,1.1,10), stone); pad.position.y=0.3; G.add(pad);
-  const pad2=new THREE.Mesh(new THREE.CylinderGeometry(6.3,6.6,0.5,10), stone2); pad2.position.y=1.0; G.add(pad2);
+  const gsh=blobShadow(24); gsh.position.y=0.03; struct.add(gsh);
+  const pad=new THREE.Mesh(new THREE.CylinderGeometry(8.2,9,1.1,10), stone); pad.position.y=0.3; struct.add(pad);
+  const pad2=new THREE.Mesh(new THREE.CylinderGeometry(6.3,6.6,0.5,10), stone2); pad2.position.y=1.0; struct.add(pad2);
   // 룬 링
   const rune=new THREE.Mesh(new THREE.TorusGeometry(5.2,0.22,6,36), new THREE.MeshBasicMaterial({color:s.col}));
   rune.rotation.x=Math.PI/2; rune.position.y=1.32; G.add(rune);
@@ -36,7 +38,7 @@ function buildShrine(s){
   for(let i=0;i<4;i++){
     const a=i/4*Math.PI*2+Math.PI/4;
     const p=new THREE.Mesh(new THREE.CylinderGeometry(0.55,0.7,6.4,6), stone);
-    p.position.set(Math.cos(a)*6.4, 3.4, Math.sin(a)*6.4); G.add(p);
+    p.position.set(Math.cos(a)*6.4, 3.4, Math.sin(a)*6.4); struct.add(p);
     const cap=new THREE.Mesh(new THREE.BoxGeometry(1.7,0.6,1.7), stone2);
     cap.position.set(Math.cos(a)*6.4, 6.85, Math.sin(a)*6.4); cap.rotation.y=a; G.add(cap);
   }
@@ -192,7 +194,7 @@ function buildShrine(s){
   const label = makeLabel(s.name, s.ch+'차시 · '+s.short, '#'+col.getHexString());
   label.position.y=9.4; G.add(label);
   scene.add(G);
-  shrineObjs[s.id] = {G, core, halo, rune, spin, flow, label, dev};
+  shrineObjs[s.id] = {G, struct, core, halo, rune, spin, flow, label, dev};
 }
 SHRINES.forEach(buildShrine);
 
@@ -228,17 +230,19 @@ NPCS.forEach(n=>{
 
 /* 에너지 파편 */
 const sparks=[];
+/* 섬 전체에 흩어진 파편 — 전부 InstancedMesh 하나로 그린다.
+   개별 메시로 두면 그것만으로 드로우콜을 수십 개 잡아먹는다. */
+let SPARK_MESH=null;
 (function makeSparks(){
   const g=new THREE.OctahedronGeometry(0.42,0);
-  for(let i=0;i<40;i++){
-    const a=rnd()*Math.PI*2, rr=14+rnd()*78, x=Math.cos(a)*rr, z=Math.sin(a)*rr, y=hAt(x,z);
-    if(y<1.4||y>26){ i--; continue; }
-    const m=new THREE.Mesh(g, new THREE.MeshBasicMaterial({color:0xffd75e}));
-    m.position.set(x, y+1.5, z);
-    const halo=new THREE.Mesh(new THREE.OctahedronGeometry(0.78,0), glow(0xffeeb8,{transparent:true,opacity:0.28}));
-    m.add(halo);
-    scene.add(m); sparks.push({m, base:y+1.5, ph:rnd()*6.28, got:false});
+  const N=36;
+  for(let i=0;i<N;i++){
+    const a=rnd()*Math.PI*2, rr=40+rnd()*104, x=Math.cos(a)*rr, z=Math.sin(a)*rr, y=hAt(x,z);
+    if(y<1.4||y>30){ i--; continue; }
+    sparks.push({x, y:y+1.5, z, base:y+1.5, ph:rnd()*6.28, got:false, rot:rnd()*6.28});
   }
+  SPARK_MESH = new THREE.InstancedMesh(g, new THREE.MeshBasicMaterial({color:0xffd75e}), sparks.length);
+  SPARK_MESH.frustumCulled = false; scene.add(SPARK_MESH);
 })();
 
 /* ══════════════ 사당의 정령 ══════════════ */
