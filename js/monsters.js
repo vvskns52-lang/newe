@@ -351,29 +351,46 @@ function hitMonster(m, customDmg){
   }
 }
 function hurtPlayer(m){
+  if(STATE.inv > 0) return;
   AUDIO.sfx('hurt');
   STATE.hp--; STATE.inv=1.8; refreshHud();
-  const dx=P.pos.x-m.g.position.x, dz=P.pos.z-m.g.position.z, d=Math.hypot(dx,dz)||1;
+  const pos = (m && m.g && m.g.position) ? m.g.position : (m && m.position ? m.position : (m && m.x !== undefined ? m : P.pos));
+  const dx=P.pos.x-pos.x, dz=P.pos.z-pos.z, d=Math.hypot(dx,dz)||1;
   // 플레이어 즉각 넉백
   P.pos.x += dx/d*2.8; P.pos.z += dz/d*2.8; P.vy=4.6; P.onGround=false;
-  // 몬스터도 반대 방향 즉각 넉백 + 스턴
-  m.g.position.x -= dx/d*3.2;
-  m.g.position.z -= dz/d*3.2;
-  m.stun = 0.45;
-  m.g.scale.set(1.4, 0.6, 1.4);
+  // 일반 몬스터인 경우에만 반대 방향 즉각 넉백 + 스턴 적용 (보스나 투사체는 g.scale이 없으므로 예외 방지)
+  if(m && m.g && m.g.position && m.g.scale && typeof m.stun !== 'undefined'){
+    m.g.position.x -= dx/d*3.2;
+    m.g.position.z -= dz/d*3.2;
+    m.stun = 0.45;
+    m.g.scale.set(1.4, 0.6, 1.4);
+  }
   // 즉각적인 카메라 쉐이크
   if(typeof triggerCamShake==='function') triggerCamShake(0.38);
-  const f=$('#hurt'); f.classList.remove('on'); void f.offsetWidth; f.classList.add('on');
+  const f=$('#hurt'); if(f){ f.classList.remove('on'); void f.offsetWidth; f.classList.add('on'); }
   if(STATE.hp<=0) downPlayer();
 }
 function downPlayer(){
   STATE.hp=maxPlayerHp(); STATE.inv=2.4; refreshHud();
   P.pos.set(0, hAt(0,7), 7); P.vy=0; CAM.tYaw=0;
-  MON.pool.forEach(m=>{ m.alive=false; m.g.visible=false; m.shadow.visible=false; });
+  if(typeof player !== 'undefined' && player && player.g){
+    player.g.position.copy(P.pos);
+    player.g.visible = true;
+  }
+  if(MON && MON.pool){
+    MON.pool.forEach(m=>{ m.alive=false; if(m.g) m.g.visible=false; if(m.shadow) m.shadow.visible=false; });
+  }
   if(typeof BOSS!=='undefined' && BOSS.alive){
     BOSS.hp = BOSS.maxHp;
+    if(BOSS.at && BOSS.g){
+      BOSS.g.position.set(BOSS.at.x, BOSS.gy || hAt(BOSS.at.x, BOSS.at.z), BOSS.at.z);
+    }
+    if(typeof clearBossHazard === 'function') clearBossHazard();
     if(typeof bossBar==='function') bossBar(true);
   }
-  const f=$('#downFlash'); f.classList.remove('on'); void f.offsetWidth; f.classList.add('on');
+  const f=$('#downFlash'); if(f){ f.classList.remove('on'); void f.offsetWidth; f.classList.add('on'); }
   toast('🌫️','오염에 쓰러져 빛의 도시에서 깨어났다 — 진행 상황은 그대로입니다', 4200);
+  if(typeof AUDIO !== 'undefined' && AUDIO.ready){
+    AUDIO.setMood('city');
+  }
 }

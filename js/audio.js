@@ -31,6 +31,7 @@ const AUDIO = (function(){
     tense : [[59,62,66],[67,71,74],[64,67,71],[69,72,76]],   // Bm G  Em Am
     shrine: [[62,69,74],[64,71,76],[62,69,74],[67,74,78]],   // 5도 위주 — 조용하고 비어 있게
     ending: [[62,66,69],[69,73,76],[67,71,74],[62,66,69]],
+    boss  : [[50,53,57,62],[46,50,53,58],[43,46,50,55],[45,49,52,55]], // Dm Bb Gm A7 (웅장한 단조 화음 진행)
   };
   const PENTA = [62,64,66,69,71,74,76,78,81];         // D 장5음계
 
@@ -40,6 +41,7 @@ const AUDIO = (function(){
     tense :{pad:0.34, bell:0.20, bass:0.44, cut: 620, melody:0.22},
     shrine:{pad:0.22, bell:0.26, bass:0.18, cut: 800, melody:0.18},
     ending:{pad:0.40, bell:0.55, bass:0.38, cut:1500, melody:0.62},
+    boss  :{pad:0.48, bell:0.30, bass:0.55, cut:2200, melody:0.80},
   };
 
   /* ── 잔향 — 짧은 잡음 임펄스를 만들어 컨볼버에 넣는다 (파일 불필요) ── */
@@ -85,9 +87,14 @@ const AUDIO = (function(){
     if(!ready) return;
     const t = o.t, dur = o.dur;
     const osc = ctx.createOscillator(); osc.type = o.type || 'sine';
-    osc.frequency.value = o.f;
+    if(o.fEnd){
+      osc.frequency.setValueAtTime(Math.max(10, o.f), t);
+      osc.frequency.exponentialRampToValueAtTime(Math.max(10, o.fEnd), t + dur);
+    } else {
+      osc.frequency.value = o.f;
+    }
     const g = ctx.createGain();
-    const f = ctx.createBiquadFilter(); f.type='lowpass';
+    const f = ctx.createBiquadFilter(); f.type = o.filterType || 'lowpass';
     f.frequency.value = o.cut || 2200; f.Q.value = o.q || 0.7;
     osc.connect(f); f.connect(g); g.connect(o.to || musicBus);
 
@@ -100,7 +107,7 @@ const AUDIO = (function(){
   }
   function noise(o){
     if(!ready) return;
-    const len = Math.floor(ctx.sampleRate*o.dur), b = ctx.createBuffer(1, len, ctx.sampleRate);
+    const len = Math.max(1, Math.floor(ctx.sampleRate*o.dur)), b = ctx.createBuffer(1, len, ctx.sampleRate);
     const d = b.getChannelData(0);
     for(let i=0;i<len;i++) d[i] = (Math.random()*2-1) * (1-i/len);
     const src = ctx.createBufferSource(); src.buffer = b;
@@ -119,27 +126,100 @@ const AUDIO = (function(){
       const bar = Math.floor(beat/4) % 4, inBar = beat % 4;
       const ch = P[bar];
 
-      if(inBar === 0){
-        /* 패드 — 길게 눌러 두는 화음 */
-        ch.forEach((n,i)=>tone({t:nextT, f:mtof(n), dur:SPB*4, g:M.pad*(i?0.55:0.75),
-          type:'triangle', at:0.9, rl:SPB*3.4, cut:M.cut, to:moodGain}));
-        /* 베이스 */
-        tone({t:nextT, f:mtof(ch[0]-24), dur:SPB*2, g:M.bass,
-          type:'sine', at:0.05, rl:SPB*1.8, cut:320, to:moodGain});
-      }
-      if(inBar === 2){
-        tone({t:nextT, f:mtof(ch[0]-24), dur:SPB*1.6, g:M.bass*0.7,
-          type:'sine', at:0.05, rl:SPB*1.4, cut:320, to:moodGain});
-      }
+      if(mood === 'boss'){
+        /* ══════════ 보스전 특수 오케스트레이션 (긴박하고 웅장한 전장 음악) ══════════ */
+        const root = ch[0];
+        const step = SPB / 4; // 16분음표 단위
 
-      /* 멜로디 — 종소리. 가끔 쉬어서 반복처럼 들리지 않게 한다 */
-      if(Math.random() < M.melody){
-        const n = PENTA[(Math.random()*PENTA.length)|0] + (Math.random()<0.25 ? 12 : 0);
-        const off = (Math.random()<0.3) ? SPB*0.5 : 0;
-        tone({t:nextT+off, f:mtof(n), dur:SPB*1.2, g:M.bell,
-          type:'triangle', at:0.008, rl:SPB*1.1, cut:M.cut+900, to:moodGain});
-        tone({t:nextT+off, f:mtof(n+12), dur:SPB*0.7, g:M.bell*0.22,
-          type:'sine', at:0.006, rl:SPB*0.6, cut:5000, to:moodGain});
+        /* 1. 웅장한 팀파니 / 워 드럼 (매 박 묵직한 타격감 + 노이즈 충격파) */
+        tone({t:nextT, f:105, fEnd:34, dur:SPB*0.75, g:0.55, type:'sine', cut:380, to:moodGain});
+        noise({t:nextT, dur:0.065, f:240, g:0.20, type:'lowpass', q:1.0, to:moodGain});
+
+        // 짝수 박 스네어 / 배틀 퍼커션
+        if(inBar === 1 || inBar === 3){
+          noise({t:nextT, dur:0.18, f:1600, g:0.25, type:'bandpass', q:1.6, to:moodGain});
+          noise({t:nextT, dur:0.08, f:4200, g:0.12, type:'highpass', q:0.8, to:moodGain});
+        }
+        // 마칭 16분음표 고조 비트 & 싱코페이션 타격
+        [1, 2, 3].forEach(k => {
+          const subT = nextT + k * step;
+          if(k === 2 && (inBar === 2 || inBar === 3)){
+            tone({t:subT, f:85, fEnd:32, dur:step*1.2, g:0.35, type:'sine', cut:280, to:moodGain});
+          }
+          noise({t:subT, dur:0.035, f:5500, g:0.045, type:'bandpass', q:2.5, to:moodGain});
+        });
+
+        /* 2. 질주하는 16분음표 베이스 오스티나토 (박진감 넘치는 액션 드라이브) */
+        const bassNotes = [root - 24, root - 24, root - 12, root - 24];
+        if(inBar === 3) bassNotes[2] = root - 21; // 긴장감 고조 변화음
+        bassNotes.forEach((bn, k) => {
+          const subT = nextT + k * step;
+          tone({
+            t: subT, f: mtof(bn), dur: step * 0.9, g: 0.38,
+            type: 'sawtooth', at: 0.008, rl: step * 0.75, cut: 500, q: 2.0, to: moodGain
+          });
+          tone({
+            t: subT, f: mtof(bn), dur: step * 0.85, g: 0.30,
+            type: 'sine', at: 0.01, rl: step * 0.7, cut: 200, to: moodGain
+          });
+        });
+
+        /* 3. 웅장한 금관 & 현악 화음 스타카토 어택 */
+        if(inBar === 0 || inBar === 2){
+          const stabDur = (inBar === 0) ? SPB * 1.8 : SPB * 1.2;
+          ch.forEach((n, idx) => {
+            tone({
+              t: nextT, f: mtof(n + 12), dur: stabDur, g: 0.24 * (idx === 0 ? 1.2 : 0.85),
+              type: 'sawtooth', at: 0.02, rl: stabDur * 0.8, cut: 1500, q: 1.2, det: (idx%2===0?6:-6), to: moodGain
+            });
+            tone({
+              t: nextT, f: mtof(n), dur: stabDur, g: 0.20,
+              type: 'triangle', at: 0.03, rl: stabDur * 0.8, cut: 2200, to: moodGain
+            });
+          });
+        }
+
+        /* 4. 긴박한 16분음표 스트링 아르페지오 (빠른 속도감과 위기감) */
+        const arpScale = [0, 3, 7, 12, 15, 12, 7, 3, 0, 3, 8, 12, 14, 12, 8, 3];
+        for(let k = 0; k < 4; k++){
+          const subT = nextT + k * step;
+          const noteOffset = arpScale[(inBar * 4 + k) % arpScale.length];
+          const arpPitch = root + noteOffset + 12;
+          tone({
+            t: subT, f: mtof(arpPitch), dur: step * 1.1, g: 0.16,
+            type: 'sawtooth', at: 0.006, rl: step * 0.85, cut: 2800, q: 1.0, to: moodGain
+          });
+          if(k === 0 || k === 2){
+            tone({
+              t: subT, f: mtof(arpPitch + 12), dur: step * 0.8, g: 0.07,
+              type: 'sine', at: 0.005, rl: step * 0.6, cut: 5000, to: moodGain
+            });
+          }
+        }
+      } else {
+        /* 평상시 배경음악 (들판 / 도시 / 긴장 / 사당 / 엔딩) */
+        if(inBar === 0){
+          /* 패드 — 길게 눌러 두는 화음 */
+          ch.forEach((n,i)=>tone({t:nextT, f:mtof(n), dur:SPB*4, g:M.pad*(i?0.55:0.75),
+            type:'triangle', at:0.9, rl:SPB*3.4, cut:M.cut, to:moodGain}));
+          /* 베이스 */
+          tone({t:nextT, f:mtof(ch[0]-24), dur:SPB*2, g:M.bass,
+            type:'sine', at:0.05, rl:SPB*1.8, cut:320, to:moodGain});
+        }
+        if(inBar === 2){
+          tone({t:nextT, f:mtof(ch[0]-24), dur:SPB*1.6, g:M.bass*0.7,
+            type:'sine', at:0.05, rl:SPB*1.4, cut:320, to:moodGain});
+        }
+
+        /* 멜로디 — 종소리. 가끔 쉬어서 반복처럼 들리지 않게 한다 */
+        if(Math.random() < M.melody){
+          const n = PENTA[(Math.random()*PENTA.length)|0] + (Math.random()<0.25 ? 12 : 0);
+          const off = (Math.random()<0.3) ? SPB*0.5 : 0;
+          tone({t:nextT+off, f:mtof(n), dur:SPB*1.2, g:M.bell,
+            type:'triangle', at:0.008, rl:SPB*1.1, cut:M.cut+900, to:moodGain});
+          tone({t:nextT+off, f:mtof(n+12), dur:SPB*0.7, g:M.bell*0.22,
+            type:'sine', at:0.006, rl:SPB*0.6, cut:5000, to:moodGain});
+        }
       }
 
       nextT += SPB; beat++;
@@ -153,8 +233,10 @@ const AUDIO = (function(){
     const t = ctx.currentTime;
     moodGain.gain.cancelScheduledValues(t);
     moodGain.gain.setValueAtTime(moodGain.gain.value, t);
-    moodGain.gain.linearRampToValueAtTime(0.35, t+0.35);
-    moodGain.gain.linearRampToValueAtTime(1.0,  t+1.5);
+    const dropTime = (m === 'boss') ? 0.10 : 0.35;
+    const riseTime = (m === 'boss') ? 0.40 : 1.5;
+    moodGain.gain.linearRampToValueAtTime(0.35, t + dropTime);
+    moodGain.gain.linearRampToValueAtTime(1.0,  t + riseTime);
   }
 
   /* ── 효과음 ── */

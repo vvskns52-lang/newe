@@ -259,7 +259,7 @@ function spawnBoss(){
   bossBar(true);
   setQuest(cfg.title, cfg.desc);
   toast(cfg.icon, cfg.spawnToast, 4800);
-  AUDIO.setMood('tense');
+  AUDIO.setMood('boss');
 }
 
 function clearBossHazard(){

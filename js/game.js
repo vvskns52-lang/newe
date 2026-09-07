@@ -1138,8 +1138,15 @@ function updateMood(dt){
   if(!AUDIO.ready) return;
   if(STATE.mode==='ending'){ AUDIO.setMood('ending'); return; }
   if(STATE.mode==='shrine'){ AUDIO.setMood('shrine'); return; }
-  __moodT -= dt; if(__moodT>0) return; __moodT = 1.2;   /* 초당 한 번이면 충분 */
   const r=Math.hypot(P.pos.x,P.pos.z);
+  if(typeof BOSS !== 'undefined' && BOSS.alive && BOSS.die <= 0){
+    const bDist = (BOSS.g && BOSS.g.position) ? Math.hypot(P.pos.x - BOSS.g.position.x, P.pos.z - BOSS.g.position.z) : 999;
+    if(bDist < 70 || r >= 26){
+      AUDIO.setMood('boss');
+      return;
+    }
+  }
+  __moodT -= dt; if(__moodT>0) return; __moodT = 1.2;   /* 초당 한 번이면 충분 */
   if(typeof MON!=='undefined' && MON.pool && MON.pool.some(m=>m.alive &&
       Math.hypot(m.g.position.x-P.pos.x, m.g.position.z-P.pos.z) < 34)) AUDIO.setMood('tense');
   else if(r < 30) AUDIO.setMood('city');
