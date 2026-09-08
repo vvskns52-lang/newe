@@ -333,10 +333,17 @@ const cityHouses = new THREE.Group(); cityGroup.add(cityHouses);   /* 멀리서�
     lanterns, smartFarm, fountain, fSpout, fDrops, lightPillar
   };
 
+  /* ───────── 빛의 도시 물리 충돌체 (플레이어가 건물을 관통하지 못하도록 보호) ───────── */
+  const CITY_COLLIDERS = [
+    { x: 0, z: 0, r: 3.8, name: '중앙 전력탑 및 분수대' },
+    { x: 12.0, z: 12.0, r: 4.4, name: '스마트팜 온실' }
+  ];
+
   /* 집 — 위로 갈수록 살짝 좁아지는 벽, 처마가 나온 지붕, 굴뚝 */
   for(let i=0;i<16;i++){
     const a = i/16*Math.PI*2 + 0.16, rr = 27 + (i%3)*4.6;
     const x = Math.cos(a)*rr, z = Math.sin(a)*rr, y = hAt(x,z);
+    CITY_COLLIDERS.push({ x, z, r: 3.3, name: '도시 주택 ' + (i+1) });
     const g = new THREE.Group();
     const w = 3.6+rnd()*1.9, h = 2.6+rnd()*1.6;
     const wall = new THREE.Mesh(new THREE.CylinderGeometry(w*0.62, w*0.72, h, 4), matte(C.wall[(rnd()*4)|0]));
@@ -355,4 +362,5 @@ const cityHouses = new THREE.Group(); cityGroup.add(cityHouses);   /* 멀리서�
     if(i%4===0){ const pl=new THREE.PointLight(0xffd27a,0,12); pl.position.set(0,h*0.6,0); g.add(pl); cityLights.push(pl); }
     g.position.set(x,y,z); g.rotation.y = -a + Math.PI/2; cityHouses.add(g);
   }
+  window.CITY_COLLIDERS = CITY_COLLIDERS;
 })();

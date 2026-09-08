@@ -269,10 +269,27 @@ function clearBossHazard(){
 }
 
 function hitBoss(customDmg){
-  if(!BOSS.alive || !BOSS.open || BOSS.die > 0) return;
+  if(!BOSS.alive || BOSS.die > 0) return;
+  // 가슴의 핵이 닫혀 있을 때는 껍질 방패 피드백 제공 (5번 개선)
+  if(!BOSS.open){
+    AUDIO.sfx('bump');
+    if(!BOSS._lastShieldToast || performance.now() - BOSS._lastShieldToast > 2800){
+      BOSS._lastShieldToast = performance.now();
+      toast('🛡️', '오염 외피에 튕겨났다! <b>가슴의 핵이 열렸을 때</b> 타격하라!', 2200);
+    }
+    if(BOSS.shell){
+      BOSS.shell.material.color.setHex(0xffffff);
+      setTimeout(()=>{
+        const cfg = BOSS_CONFIGS[(BOSS.currentStage || 1) - 1] || BOSS_CONFIGS[0];
+        if(BOSS.shell) BOSS.shell.material.color.setHex(cfg.colors.shell);
+      }, 80);
+    }
+    return;
+  }
   const baseDmg = (typeof customDmg === 'number' && customDmg > 0) ? customDmg : lightDmg();
   const dmg = baseDmg * 2; // 체력이 2배 빠르게 닳도록 피해량 2배 적용
   BOSS.hp -= dmg;
+  AUDIO.sfx('spark');
   BOSS.core.material.color.setHex(0xffffff);
   const cfg = BOSS_CONFIGS[(BOSS.currentStage || 1) - 1] || BOSS_CONFIGS[0];
   setTimeout(()=>{ if(BOSS.core) BOSS.core.material.color.setHex(cfg.colors.core); }, 90);
@@ -283,6 +300,7 @@ function hitBoss(customDmg){
 function defeatBoss(){
   BOSS.die = 1.6;
   BOSS.open = false;
+  BOSS.alive = false; // 즉시 alive를 false로 하여 재타격 및 루프 오동작 방지
   const stage = BOSS.currentStage || 1;
   const cfg = BOSS_CONFIGS[stage - 1] || BOSS_CONFIGS[0];
 
@@ -294,10 +312,14 @@ function defeatBoss(){
 
   clearBossHazard();
 
-  bossBar(false);
+  bossBar(false); // 보스 체력바 즉시 닫기
   AUDIO.sfx('clear');
+  // 보스 처치 후 최소 25초간 안전 정비 시간 보장 (6번 개선)
+  BOSS.cooldown = 25;
+
   setTimeout(()=>{
-    BOSS.alive = false; BOSS.g.visible = false;
+    if(BOSS.g) BOSS.g.visible = false;
+    bossBar(false); // 재확인 닫기
     toast(cfg.icon, cfg.defeatToast, 5200);
     const rem = 10 - coreCount();
     if(STATE.bossStage < 3){
@@ -310,7 +332,7 @@ function defeatBoss(){
         '섬의 3대 환경 재앙이 모두 정화되었다! 남은 사당 <b>' + rem + '곳</b>과 중앙 관제탑을 가동하자.');
     }
     AUDIO.setMood('city');
-  }, 1700);
+  }, 1600);
 }
 
 function launchBossProj(fromPos, toTarget, speed, color, isLobbed = false){
@@ -346,15 +368,19 @@ function launchBossProj(fromPos, toTarget, speed, color, isLobbed = false){
 }
 
 function updateBoss(dt, t){
+  if(BOSS.cooldown > 0){
+    BOSS.cooldown -= dt;
+  }
+
   /* 코어 수에 따른 보스 대기 상태 체크 */
   const cnt = coreCount();
   const targetStage = cnt >= 9 ? 3 : (cnt >= 6 ? 2 : (cnt >= 3 ? 1 : 0));
-  if((STATE.bossStage || 0) < targetStage && !BOSS.alive){
+  if((STATE.bossStage || 0) < targetStage && !BOSS.alive && (BOSS.cooldown || 0) <= 0){
     STATE.bossPending = true;
   }
 
-  /* 등장 대기 — 대화·사당 화면이 끝나고 조작이 돌아왔을 때 스폰 */
-  if(STATE.bossPending && !BOSS.alive && (STATE.bossStage || 0) < 3 && STATE.mode === 'play'){
+  /* 등장 대기 — 대화·사당 화면이 끝나고 조작이 돌아왔을 때 스폰 (6번 개선: 처치 후 25초 쿨다운 보장) */
+  if(STATE.bossPending && !BOSS.alive && (STATE.bossStage || 0) < 3 && STATE.mode === 'play' && (BOSS.cooldown || 0) <= 0){
     BOSS.wait = (BOSS.wait || 0) + dt;
     if(BOSS.wait > 1.2){
       STATE.bossPending = false;
@@ -366,6 +392,7 @@ function updateBoss(dt, t){
 
   const stage = BOSS.currentStage || 1;
   const cfg = BOSS_CONFIGS[stage - 1] || BOSS_CONFIGS[0];
+  const safeR = (typeof SAFE_R !== 'undefined' ? SAFE_R : 32);
 
   /* 탄환 업데이트 */
   if(BOSS.projs){
@@ -378,12 +405,17 @@ function updateBoss(dt, t){
       p.mesh.position.y += p.vy * dt;
       p.mesh.position.z += p.vz * dt;
 
+      // 도시 안전지대(마을) 내부 침범 시 탄환 즉시 소멸 (4번 개선)
+      if(Math.hypot(p.mesh.position.x, p.mesh.position.z) < safeR){
+        p.on = false; p.mesh.visible = false; continue;
+      }
+
       // 지면 충돌 체크
       const gy = hAt(p.mesh.position.x, p.mesh.position.z);
       if(p.mesh.position.y < gy + 0.25){
         p.on = false; p.mesh.visible = false;
-        // 2차 보스: 지면에 닿은 곳에 대형 독성 슬러지 웅덩이 생성
-        if(cfg.hasPuddle && BOSS.puddles){
+        // 2차 보스: 지면에 닿은 곳에 대형 독성 슬러지 웅덩이 생성 (안전지대 밖에서만)
+        if(cfg.hasPuddle && BOSS.puddles && Math.hypot(p.mesh.position.x, p.mesh.position.z) >= safeR){
           const pd = BOSS.puddles.find(item => !item.on);
           if(pd){
             pd.on = true;
@@ -396,11 +428,11 @@ function updateBoss(dt, t){
         continue;
       }
 
-      // 플레이어 피격 판정
+      // 플레이어 피격 판정 (안전지대 밖에서만 피격)
       const dp = Math.hypot(p.mesh.position.x - P.pos.x, p.mesh.position.z - P.pos.z);
       if(dp < 1.9 && Math.abs(p.mesh.position.y - (P.pos.y + 1.0)) < 2.2){
         p.on = false; p.mesh.visible = false;
-        if(STATE.inv <= 0){
+        if(STATE.inv <= 0 && Math.hypot(P.pos.x, P.pos.z) >= safeR){
           hurtPlayer({ g: { position: p.mesh.position } });
         }
       }
@@ -412,11 +444,11 @@ function updateBoss(dt, t){
     for(const pd of BOSS.puddles){
       if(!pd.on) continue;
       pd.life -= dt;
-      if(pd.life <= 0){ pd.on = false; pd.mesh.visible = false; continue; }
+      if(pd.life <= 0 || Math.hypot(pd.pos.x, pd.pos.z) < safeR){ pd.on = false; pd.mesh.visible = false; continue; }
       pd.mesh.material.opacity = Math.min(0.72, pd.life / 1.5);
       const dp = Math.hypot(P.pos.x - pd.pos.x, P.pos.z - pd.pos.z);
-      if(dp < 4.2 && P.onGround){
-        P.vx *= 0.82; P.vz *= 0.82; // 심각한 이동 둔화!
+      if(dp < 4.2 && P.onGround && Math.hypot(P.pos.x, P.pos.z) >= safeR){
+        P.vx *= 0.82; P.vz *= 0.82; // 이동 둔화
         if(STATE.inv <= 0){
           hurtPlayer({ g: { position: pd.pos } });
           toast('☣️', '독성 슬러지 오염! 신속히 벗어나라!', 1500);
@@ -434,7 +466,7 @@ function updateBoss(dt, t){
 
     const dp = Math.hypot(P.pos.x - BOSS.shockWave.pos.x, P.pos.z - BOSS.shockWave.pos.z);
     if(!BOSS.shockWave.hit && Math.abs(dp - sr) < 1.8){
-      if(P.onGround && STATE.inv <= 0){
+      if(P.onGround && STATE.inv <= 0 && Math.hypot(P.pos.x, P.pos.z) >= safeR){
         BOSS.shockWave.hit = true;
         hurtPlayer({ g: { position: BOSS.shockWave.pos } });
         toast('💥', '지진파 피격! [Space] 점프로 뛰어넘어야 합니다!', 1800);
@@ -447,17 +479,22 @@ function updateBoss(dt, t){
     }
   }
 
-  if(!BOSS.alive) return;
-  const g = BOSS.g;
-
-  /* 쓰러지는 중 */
+  /* 쓰러지는 중 또는 이미 사망한 경우 체력바 확실하게 닫기 (3번 버그 해결) */
   if(BOSS.die > 0){
     BOSS.die -= dt;
-    g.scale.setScalar(Math.max(0.02, (BOSS.die / 1.6) * cfg.scale));
-    g.rotation.y += dt * 4;
+    if(BOSS.g){
+      BOSS.g.scale.setScalar(Math.max(0.02, (BOSS.die / 1.6) * cfg.scale));
+      BOSS.g.rotation.y += dt * 4;
+    }
+    bossBar(false);
+    return;
+  }
+  if(!BOSS.alive){
+    bossBar(false);
     return;
   }
 
+  const g = BOSS.g;
   BOSS.t += dt;
   const d = Math.hypot(P.pos.x - g.position.x, P.pos.z - g.position.z);
 
@@ -489,7 +526,7 @@ function updateBoss(dt, t){
   if(d > minStopDist && d < 82){
     const sp = (half ? cfg.speed * 1.3 : cfg.speed) * dt;
     const nx = g.position.x + Math.sin(face) * sp, nz = g.position.z + Math.cos(face) * sp;
-    if(Math.hypot(nx, nz) > 28 && Math.hypot(nx, nz) < 95){
+    if(Math.hypot(nx, nz) > (safeR - 2) && Math.hypot(nx, nz) < 95){
       g.position.x = nx; g.position.z = nz; g.position.y = hAt(nx, nz);
     }
   }
@@ -505,10 +542,8 @@ function updateBoss(dt, t){
       AUDIO.sfx('step');
 
       if(stage === 1){
-        // 1차: 플레이어를 향해 흑연 탄환 1발 직사
         launchBossProj(shootPos, P.pos, cfg.projSpeed, cfg.projColor, false);
       } else if(stage === 2){
-        // 2차: 플레이어 발밑 및 주변 5방향으로 대량의 슬러지 폭탄 집중 투하!
         const targets = [
           { x: P.pos.x, y: P.pos.y, z: P.pos.z },
           { x: P.pos.x + 3.4, y: P.pos.y, z: P.pos.z + 1.8 },
@@ -520,7 +555,6 @@ function updateBoss(dt, t){
           launchBossProj(shootPos, tgt, cfg.projSpeed, cfg.projColor, true);
         });
       } else if(stage === 3){
-        // 3차: 5방향 확산 탄소 화염탄 난사
         [-0.30, -0.15, 0, 0.15, 0.30].forEach(ang => {
           const cos = Math.cos(ang), sin = Math.sin(ang);
           const dx = P.pos.x - shootPos.x, dz = P.pos.z - shootPos.z;
@@ -564,9 +598,11 @@ function updateBoss(dt, t){
     p.m.position.set(Math.cos(p.a) * p.r, p.y + Math.sin(t * 0.9 + p.a) * 0.9, Math.sin(p.a) * p.r);
   });
 
-  /* 근접 접촉 피해 */
+  /* 근접 접촉 피해 (안전지대 밖에서만) */
   if(STATE.inv <= 0 && d < 10.0 * cfg.scale && Math.abs(P.pos.y - g.position.y) < 13 * cfg.scale){
-    hurtPlayer({ g: { position: g.position } });
+    if(Math.hypot(P.pos.x, P.pos.z) >= safeR){
+      hurtPlayer({ g: { position: g.position } });
+    }
   }
-  bossBar(true);
+  bossBar(BOSS.alive && BOSS.die <= 0);
 }

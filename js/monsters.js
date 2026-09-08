@@ -13,10 +13,10 @@ const MTYPES = {
          fact:'지구를 데우는 대표 <b>온실가스</b>. 눈에 보이지 않아 더 위험합니다.' },
 };
 const MON = { pool:[], bolts:[], drops:[], zones:[], seen:{}, spawnT:0, ready:false };
-/* 몬스터 밀도 — 보통으로 고정 (출현빈도 고정 및 전역 활성화) */
-function monLv(){ return { cap: LOWQ ? 7 : 10, every: 1.1 }; }
+/* 몬스터 밀도 — 학생 피로도 완화 (동시 스폰 상한 및 스폰 주기 쾌적화) */
+function monLv(){ return { cap: LOWQ ? 5 : 7, every: 1.8 }; }
 function setMonLevel(i){ STATE.monLevel=2; save(); }
-const SAFE_R = 32;                       // 빛의 도시 안전지대
+const SAFE_R = 34;                       // 빛의 도시 안전지대
 
 /* ── 오염 지대 (사당마다 하나, 사당을 깨우면 걷힌다) ── */
 (function buildZones(){
@@ -352,12 +352,25 @@ function hitMonster(m, customDmg){
 }
 function hurtPlayer(m){
   if(STATE.inv > 0) return;
+  // 상점, 지식 도감 창이 열려 있거나 대화 중일 때는 안전 보호 (피격 무효화)
+  const shopOn = $('#sparkShop') && $('#sparkShop').classList.contains('on');
+  const archOn = $('#archive') && $('#archive').classList.contains('on');
+  if(shopOn || archOn || STATE.mode !== 'play') return;
+
   AUDIO.sfx('hurt');
   STATE.hp--; STATE.inv=1.8; refreshHud();
   const pos = (m && m.g && m.g.position) ? m.g.position : (m && m.position ? m.position : (m && m.x !== undefined ? m : P.pos));
   const dx=P.pos.x-pos.x, dz=P.pos.z-pos.z, d=Math.hypot(dx,dz)||1;
   // 플레이어 즉각 넉백
   P.pos.x += dx/d*2.8; P.pos.z += dz/d*2.8; P.vy=4.6; P.onGround=false;
+
+  // 섬 경계선(바다) 밖으로 튕겨 나가지 않도록 안전 클램핑
+  const pDist = Math.hypot(P.pos.x, P.pos.z);
+  const maxSafeR = (typeof WALK_R !== 'undefined' ? WALK_R : 148) - 1.5;
+  if(pDist > maxSafeR){
+    P.pos.x = (P.pos.x / pDist) * maxSafeR;
+    P.pos.z = (P.pos.z / pDist) * maxSafeR;
+  }
   // 일반 몬스터인 경우에만 반대 방향 즉각 넉백 + 스턴 적용 (보스나 투사체는 g.scale이 없으므로 예외 방지)
   if(m && m.g && m.g.position && m.g.scale && typeof m.stun !== 'undefined'){
     m.g.position.x -= dx/d*3.2;

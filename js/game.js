@@ -217,6 +217,17 @@ function renderShop(){
     const canBuy = it.canBuy ? it.canBuy() : true;
     const lvTag = it.level ? '<span class="shopCardLevel">' + it.level() + '</span>' : '';
     
+    let btnLabel = it.buyText();
+    let subNotice = '';
+    if(isMax){
+      btnLabel = '최대 달성';
+    } else if(!canAfford){
+      const diff = cost - STATE.sparks;
+      subNotice = '<div class="shopNeedMore" style="font-size:0.75rem;color:#ff6b6b;margin-top:4px;font-weight:600;text-align:right;">⚠️ 파편 ' + diff + '개 부족 (' + STATE.sparks + '/' + cost + ')</div>';
+    } else if(!canBuy){
+      if(it.id === 'heal') subNotice = '<div class="shopNeedMore" style="font-size:0.75rem;color:#4ecdc4;margin-top:4px;text-align:right;">체력 가득참</div>';
+    }
+
     card.innerHTML = 
       '<div class="shopCardInfo">' +
         '<div class="shopCardIco">' + it.icon + '</div>' +
@@ -227,8 +238,9 @@ function renderShop(){
       '</div>' +
       '<div class="shopCardAction">' +
         '<button class="btn gold shopBuyBtn" ' + ((!canAfford || !canBuy || isMax) ? 'disabled' : '') + '>' +
-          it.buyText() +
+          btnLabel +
         '</button>' +
+        subNotice +
       '</div>';
     const btn = card.querySelector('.shopBuyBtn');
     if(btn && canAfford && canBuy && !isMax){
@@ -755,8 +767,31 @@ function animate(){
       P.speed = lerp(P.speed, 11.2*run*boostMult*Math.max(TOUCH.mag>0.12?TOUCH.mag:1,0.35), 0.2);
     } else P.speed = lerp(P.speed, 0, 0.28);
 
+function checkCityCollision(x, z, r = 0.8){
+  if(typeof CITY_COLLIDERS === 'undefined' || !CITY_COLLIDERS) return false;
+  if(Math.hypot(x, z) > 48) return false;
+  for(let i = 0; i < CITY_COLLIDERS.length; i++){
+    const c = CITY_COLLIDERS[i];
+    if(Math.hypot(x - c.x, z - c.z) < c.r + r) return true;
+  }
+  return false;
+}
+
     if(P.speed>0.05){
-      const nx = P.pos.x + moveX*P.speed*dt, nz = P.pos.z + moveZ*P.speed*dt;
+      const stepX = moveX*P.speed*dt, stepZ = moveZ*P.speed*dt;
+      let nx = P.pos.x + stepX, nz = P.pos.z + stepZ;
+
+      // 도시 건물·분수대 충돌 시 관통을 막고 벽을 따라 부드럽게 미끄러짐
+      if(checkCityCollision(nx, nz, 0.8)){
+        if(!checkCityCollision(P.pos.x + stepX, P.pos.z, 0.8)){
+          nx = P.pos.x + stepX; nz = P.pos.z;
+        } else if(!checkCityCollision(P.pos.x, P.pos.z + stepZ, 0.8)){
+          nx = P.pos.x; nz = P.pos.z + stepZ;
+        } else {
+          nx = P.pos.x; nz = P.pos.z; P.speed *= 0.3;
+        }
+      }
+
       const ny = hAt(nx,nz);
       const slope = Math.abs(ny - hAt(P.pos.x,P.pos.z))/(P.speed*dt+1e-5);
       if(ny > 0.55 && slope < 1.5 && Math.hypot(nx,nz) < WALK_R){ P.pos.x=nx; P.pos.z=nz; }
