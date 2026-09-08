@@ -291,11 +291,13 @@ function triggerCamShake(amt){ CAM.shake = Math.max(CAM.shake, amt); }
 const TOUCH={x:0, z:0, mag:0, run:false, jump:false};
 const cv=renderer.domElement;
 
-/* 포인터(마우스·터치 공용) — 1손가락 시점 회전, 2손가락 핀치 줌 */
+/* 포인터(마우스·터치 공용) — 1손가락 시점 회전, 2손가락 부드러운 거리 조절 */
 const ptrs=new Map(); let pinchD=0;
 const pdist=()=>{ const a=[...ptrs.values()]; return Math.hypot(a[0].x-a[1].x, a[0].y-a[1].y); };
 let tapX=0, tapY=0, tapT=0;
 cv.addEventListener('pointerdown', e=>{
+  e.preventDefault();
+  if(e.target!==cv) return;
   if(STATE.mode==='dialog'){ nextLine(); return; }
   if(STATE.mode!=='play') return;
   tapX=e.clientX; tapY=e.clientY; tapT=performance.now();
@@ -304,6 +306,7 @@ cv.addEventListener('pointerdown', e=>{
   if(ptrs.size===2) pinchD=pdist();
 });
 cv.addEventListener('pointermove', e=>{
+  e.preventDefault();
   const p=ptrs.get(e.pointerId); if(!p) return;
   const dx=e.clientX-p.x, dy=e.clientY-p.y; p.x=e.clientX; p.y=e.clientY;
   if(STATE.mode!=='play') return;
@@ -311,59 +314,78 @@ cv.addEventListener('pointermove', e=>{
     CAM.tYaw   -= dx*0.0055;
     CAM.tPitch  = clamp(CAM.tPitch + dy*0.004, -0.15, 1.05);
   } else if(ptrs.size===2){
-    const d=pdist(); if(pinchD) CAM.tDist=clamp(CAM.tDist+(pinchD-d)*0.05, 7, 26); pinchD=d;
+    const d=pdist();
+    if(pinchD){
+      // 태블릿에서 극단적인 줌인(캐릭터 등짝 가림)을 방지하고 안정적인 시야(10~18m)를 유지
+      const delta = (pinchD - d) * 0.025;
+      CAM.tDist = clamp(CAM.tDist + delta, 10, 18);
+    }
+    pinchD=d;
   }
 });
 const pdrop=e=>{
+  e.preventDefault();
   if(!TOUCH_DEV && ptrs.has(e.pointerId) && ptrs.size===1 && STATE.mode==='play'
      && performance.now()-tapT<260 && Math.hypot(e.clientX-tapX, e.clientY-tapY)<7) firePurify();
   ptrs.delete(e.pointerId); if(ptrs.size<2) pinchD=0;
 };
 cv.addEventListener('pointerup',pdrop); cv.addEventListener('pointercancel',pdrop); cv.addEventListener('lostpointercapture',pdrop);
-addEventListener('wheel', e=>{ if(STATE.mode!=='play')return; CAM.tDist=clamp(CAM.tDist+e.deltaY*0.014, 7, 26); }, {passive:true});
+addEventListener('wheel', e=>{
+  if(e.ctrlKey) e.preventDefault();
+  if(STATE.mode!=='play') return;
+  CAM.tDist=clamp(CAM.tDist+e.deltaY*0.014, 8, 22);
+}, {passive:false});
 
 /* ── 가상 조이스틱 ── */
 (function initTouch(){
   const stick=$('#stick'), knob=$('#knob');
   let sid=null, cx=0, cy=0, R=1;
   const grab=e=>{
+    e.stopPropagation(); e.preventDefault();
     const r=stick.getBoundingClientRect();
     cx=r.left+r.width/2; cy=r.top+r.height/2; R=r.width*0.40;
-    sid=e.pointerId; stick.setPointerCapture(e.pointerId); move(e); e.preventDefault();
+    sid=e.pointerId; stick.setPointerCapture(e.pointerId); move(e);
   };
   const move=e=>{
     if(e.pointerId!==sid) return;
+    e.stopPropagation(); e.preventDefault();
     let dx=e.clientX-cx, dy=e.clientY-cy;
     const d=Math.hypot(dx,dy), m=Math.min(d,R);
     if(d>0){ dx=dx/d*m; dy=dy/d*m; }
     knob.style.transform='translate('+dx+'px,'+dy+'px)';
     TOUCH.x = dx/R; TOUCH.z = dy/R; TOUCH.mag = m/R;
   };
-  const rel=e=>{ if(e.pointerId!==sid) return; sid=null;
-    knob.style.transform='translate(0,0)'; TOUCH.x=TOUCH.z=TOUCH.mag=0; };
+  const rel=e=>{
+    if(e.pointerId!==sid) return;
+    e.stopPropagation(); e.preventDefault();
+    sid=null;
+    knob.style.transform='translate(0,0)'; TOUCH.x=TOUCH.z=TOUCH.mag=0;
+  };
   stick.addEventListener('pointerdown',grab);
   stick.addEventListener('pointermove',move);
   stick.addEventListener('pointerup',rel);
   stick.addEventListener('pointercancel',rel);
 
   const jb=$('#tJump');
-  jb.addEventListener('pointerdown',e=>{ TOUCH.jump=true; e.preventDefault(); });
-  ['pointerup','pointercancel','pointerleave'].forEach(k=>jb.addEventListener(k,()=>TOUCH.jump=false));
+  jb.addEventListener('pointerdown',e=>{ e.stopPropagation(); e.preventDefault(); TOUCH.jump=true; });
+  ['pointerup','pointercancel','pointerleave'].forEach(k=>jb.addEventListener(k,e=>{ e.stopPropagation(); TOUCH.jump=false; }));
   const rb=$('#tRun');
-  rb.addEventListener('click',()=>{ TOUCH.run=!TOUCH.run; rb.classList.toggle('on',TOUCH.run); });
+  rb.addEventListener('click',e=>{ e.stopPropagation(); e.preventDefault(); TOUCH.run=!TOUCH.run; rb.classList.toggle('on',TOUCH.run); });
   const lb2=$('#tLight');
-  lb2.addEventListener('pointerdown',e=>{ e.preventDefault(); firePurify(); });
-  $('#tE').addEventListener('click',()=>{
+  lb2.addEventListener('pointerdown',e=>{ e.stopPropagation(); e.preventDefault(); firePurify(); });
+  $('#tE').addEventListener('click',e=>{
+    e.stopPropagation(); e.preventDefault();
     if(STATE.mode==='dialog') nextLine();
     else if(STATE.mode==='play') interact();
   });
   /* 지도·도움말은 키(H·M)와 버튼(태블릿) 양쪽에서 같은 함수를 쓴다.
      한쪽만 고치면 태블릿에서 다시 열 수 없게 되므로 반드시 여기로 모을 것. */
-  $('#tHelp').addEventListener('click',()=>{ if(STATE.mode!=='shrine') toggleHelp(); });
-  $('#tMap').addEventListener('click',()=>{ if(STATE.mode==='play'||$('#minimap').classList.contains('big')) toggleMap(); });
-  $('#mmCv').addEventListener('click',e=>{ e.stopPropagation();
+  $('#tHelp').addEventListener('click',e=>{ e.stopPropagation(); e.preventDefault(); if(STATE.mode!=='shrine') toggleHelp(); });
+  $('#tMap').addEventListener('click',e=>{ e.stopPropagation(); e.preventDefault(); if(STATE.mode==='play'||$('#minimap').classList.contains('big')) toggleMap(); });
+  $('#mmCv').addEventListener('click',e=>{ e.stopPropagation(); e.preventDefault();
     if(STATE.mode==='play'||$('#minimap').classList.contains('big')) toggleMap(); });
-  $('#fsBtn').addEventListener('click',()=>{
+  $('#fsBtn').addEventListener('click',e=>{
+    e.stopPropagation(); e.preventDefault();
     const d=document.documentElement;
     try{
       if(!document.fullscreenElement){ const r=(d.requestFullscreen||d.webkitRequestFullscreen||function(){}).call(d); if(r&&r.catch) r.catch(()=>{}); }

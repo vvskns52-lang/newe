@@ -43,6 +43,42 @@
   };
 })();
 
+/* ══════════════════════════════════════════════════════════
+   태블릿/모바일 브라우저 확대 방지 가드 (Anti-Zoom Guard)
+   두 손가락 제스처나 더블 탭으로 브라우저 페이지가 확대되어
+   가상 조작계의 좌표가 어긋나거나 화면이 밀려 조작이 불가능해지는
+   버그를 원천 차단한다.
+   ══════════════════════════════════════════════════════════ */
+(function antiZoomGuard(){
+  // 1. iOS Safari 제스처 줌 차단
+  ['gesturestart', 'gesturechange', 'gestureend'].forEach(function(evt){
+    document.addEventListener(evt, function(e){ e.preventDefault(); }, { passive:false });
+  });
+  // 2. 화면 전체 멀티터치(두 손가락 이상) 브라우저 핀치 줌 차단
+  document.addEventListener('touchmove', function(e){
+    if(e.touches && e.touches.length > 1){ e.preventDefault(); }
+  }, { passive:false });
+  // 3. 더블 탭 확대(Double-tap zoom) 방지
+  var lastTouchEnd = 0;
+  document.addEventListener('touchend', function(e){
+    var now = performance.now();
+    if(now - lastTouchEnd <= 300){ e.preventDefault(); }
+    lastTouchEnd = now;
+  }, { passive:false });
+  // 4. Ctrl + 마우스 휠 / 트랙패드 줌 차단
+  document.addEventListener('wheel', function(e){
+    if(e.ctrlKey){ e.preventDefault(); }
+  }, { passive:false });
+  // 5. 브라우저 visualViewport 배율 이탈 감지 시 강제 리셋
+  if(window.visualViewport){
+    var fixVp = function(){
+      if(window.visualViewport.scale !== 1){ window.scrollTo(0, 0); }
+    };
+    window.visualViewport.addEventListener('resize', fixVp);
+    window.visualViewport.addEventListener('scroll', fixVp);
+  }
+})();
+
 /* ══════════════════════════════════════════════════════════════
    에너지 크로니클 — 중2 기술·가정 6단원 신재생에너지 3D RPG
    1차시 태양광·태양열 / 2차시 풍력·수력·지열·해양 /
