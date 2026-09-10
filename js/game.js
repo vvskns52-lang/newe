@@ -111,7 +111,7 @@ const SHOP_ITEMS = [
       STATE.upgrades.weaponLevel = (STATE.upgrades.weaponLevel || 1) + 1;
       AUDIO.sfx('right');
       const lv = STATE.upgrades.weaponLevel;
-      const names = ['', '트윈 볼트', '트리플 볼트', '태양의 정화포'];
+      const names = ['', '기본 1발', '트윈 볼트', '트리플 볼트', '태양의 정화포'];
       toast('🔮', '무기 승급 완료! ' + lv + '단계 [' + names[lv] + ']');
     }
   },
@@ -301,6 +301,15 @@ addEventListener('keyup', e=>{ keys[e.key.toLowerCase()]=false; });
 const CAM={yaw:0, pitch:0.34, dist:12, tYaw:0, tPitch:0.34, tDist:12, shake:0};
 function triggerCamShake(amt){ CAM.shake = Math.max(CAM.shake, amt); }
 const TOUCH={x:0, z:0, mag:0, run:false, jump:false};
+function resetInput(){
+  Object.keys(keys).forEach(k=>delete keys[k]);
+  TOUCH.x=TOUCH.z=TOUCH.mag=0; TOUCH.jump=false; TOUCH.run=false;
+  ptrs.clear(); pinchD=0;
+  $('#knob').style.transform='translate(0,0)';
+  $('#tRun').classList.remove('on');
+}
+addEventListener('blur',resetInput);
+document.addEventListener('visibilitychange',()=>{ if(document.hidden) resetInput(); });
 const cv=renderer.domElement;
 
 /* 포인터(마우스·터치 공용) — 1손가락 시점 회전, 2손가락 부드러운 거리 조절 */

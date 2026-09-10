@@ -9,9 +9,9 @@ const ART = {
   sky:  { top:0x2f6fae, mid:0x8ecbe8, bot:0xffe6c0 },
   fog:  { color:0xb6dcec, near:180, far:395 },
   /* ── 조명 ── */
-  sun:  { color:0xffefd0, intensity:0.82, dir:[70,110,50] },
-  hemi: { sky:0xc3e0fb, ground:0x8f7856, intensity:0.40 },
-  rim:  { color:0x8fc4f5, intensity:0.30, dir:[-70,42,-58] },   // 실루엣을 살리는 역광
+  sun:  { color:0xffe7bd, intensity:0.88, dir:[70,110,50] },
+  hemi: { sky:0xc9e5ef, ground:0x77866a, intensity:0.38 },
+  rim:  { color:0x9bd6e5, intensity:0.32, dir:[-70,42,-58] },   // 실루엣을 살리는 역광
   /* ── 지형 ── */
   ground: {
     under : 0x7fa48c,   // 물속 모래
@@ -28,7 +28,7 @@ const ART = {
   bush   : [0x5aa858, 0x74bd63],
   flower : [0xff9ec0, 0xffd76a, 0xb79aff, 0xfff6ee],
   /* ── 물 ── */
-  water: { surface:0x4fb2dd, deep:0x2a6d94, foam:0xdaf1ff },
+  water: { surface:0x46aac5, deep:0x246880, foam:0xdaf1ff, specular:0x91c9d3, shininess:48 },
   /* ── 도시 ── */
   city: {
     plaza : 0xd2c096, plazaEdge:0xb8a074,
@@ -81,6 +81,23 @@ const TREE_GEO = {
   canopy: new THREE.IcosahedronGeometry(1, 1),
   bush  : new THREE.IcosahedronGeometry(1, 0),
 };
+/* 정점에만 명암을 구워 넣어, 수관 아래와 바위 밑면에 깊이를 준다.
+   메시 수나 프레임별 계산을 늘리지 않고 기존 인스턴싱을 유지한다. */
+function shadeHeight(geometry, bottom, top){
+  geometry.computeBoundingBox();
+  const p=geometry.attributes.position, bounds=geometry.boundingBox;
+  const span=Math.max(0.001,bounds.max.y-bounds.min.y);
+  const colors=new Float32Array(p.count*3);
+  for(let i=0;i<p.count;i++){
+    const t=(p.getY(i)-bounds.min.y)/span;
+    const value=bottom+(top-bottom)*t;
+    colors[i*3]=colors[i*3+1]=colors[i*3+2]=value;
+  }
+  geometry.setAttribute('color',new THREE.BufferAttribute(colors,3));
+  return geometry;
+}
+shadeHeight(TREE_GEO.canopy,0.70,1.0);
+shadeHeight(TREE_GEO.bush,0.76,1.0);
 /* 나무 한 그루의 인스턴스 배치를 계산해 돌려준다 (그리기는 world.js) */
 function treeInstance(x, y, z, rand){
   const s   = 0.72 + rand()*0.85;
@@ -107,6 +124,7 @@ const ROCK_GEO = new THREE.DodecahedronGeometry(1, 0);
   const p = ROCK_GEO.attributes.position;
   for(let i=0;i<p.count;i++) if(p.getY(i) < -0.35) p.setY(i, -0.35);
   ROCK_GEO.computeVertexNormals();
+  shadeHeight(ROCK_GEO,0.72,1.0);
 })();
 
 /* ═══════════════════════════════════════════

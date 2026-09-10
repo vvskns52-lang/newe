@@ -4,15 +4,15 @@
 /* ───────── 공통 UI 부품 ───────── */
 .panel{
   background:linear-gradient(180deg,var(--paper2),var(--paper));
-  border:2px solid var(--line);border-radius:18px;
-  box-shadow:0 10px 30px rgba(10,20,35,.28), inset 0 1px 0 #fff;
+  border:1px solid var(--line);border-radius:18px;
+  box-shadow:0 12px 32px rgba(13,36,33,.18),0 2px 5px rgba(13,36,33,.08),inset 0 1px 0 #fff;
 }
 .tag{font-family:var(--num);font-weight:800;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
 .btn{
   font-family:var(--body);font-weight:900;font-size:15px;cursor:pointer;
   border:2px solid #1b2b3d;border-radius:12px;padding:10px 18px;
   background:linear-gradient(180deg,#fff,#efe7d3);color:#1b2b3d;
-  box-shadow:0 4px 0 #1b2b3d, 0 8px 14px rgba(0,0,0,.18);transition:.08s;
+  box-shadow:0 3px 0 #1b2b3d, 0 6px 12px rgba(0,0,0,.12);transition:transform .15s,box-shadow .15s,background .15s;
 }
 .btn:hover{transform:translateY(-1px);box-shadow:0 5px 0 #1b2b3d,0 10px 18px rgba(0,0,0,.2)}
 .btn:active{transform:translateY(3px);box-shadow:0 1px 0 #1b2b3d}
@@ -22,15 +22,21 @@
 
 /* ───────── 타이틀 ───────── */
 #title{position:fixed;inset:0;z-index:60;display:flex;align-items:center;justify-content:center;
-  background:radial-gradient(120% 90% at 50% 20%,#20406b 0%,#0d1524 70%);}
-#title .wrap{text-align:center;max-width:720px;padding:28px;animation:rise .8s cubic-bezier(.2,.9,.3,1)}
+  overflow-y:auto;touch-action:pan-y;
+  background:radial-gradient(ellipse at 50% 5%,rgba(97,158,132,.24),transparent 58%),
+    radial-gradient(ellipse at 85% 90%,rgba(202,168,90,.09),transparent 45%),#102a2a;}
+#title .wrap{text-align:center;width:100%;max-width:740px;padding:32px 28px;margin:auto;animation:rise .8s cubic-bezier(.2,.9,.3,1)}
+.titleEyebrow{color:#b6cdb7;font-size:11px;font-weight:700;letter-spacing:.22em;margin:20px 0 14px}
+#title .titleSubtitle{color:#e0e6d6;font-size:clamp(17px,3vw,24px);font-weight:700;letter-spacing:-.04em;margin-top:14px}
+#startBtn{font-size:17px;padding:15px 38px;min-height:52px;border-color:#b89548;
+  box-shadow:0 3px 0 #8a6c31,0 10px 26px rgba(0,0,0,.2)}
 @keyframes rise{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:none}}
 #title .crest{font-size:66px;filter:drop-shadow(0 6px 20px rgba(244,192,79,.55));animation:float 3.4s ease-in-out infinite}
 @keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
 #title h1{font-family:var(--disp);color:#fff;font-size:clamp(34px,6vw,60px);line-height:1.14;letter-spacing:-1px;
-  text-shadow:0 4px 0 rgba(0,0,0,.25),0 0 40px rgba(121,200,242,.45);margin:6px 0 4px}
+  text-shadow:0 3px 16px rgba(0,0,0,.2);margin:6px 0 4px}
 #title h1 em{font-style:normal;color:var(--gold)}
-#title p{color:#bcd3e8;font-size:16px;line-height:1.7;margin:12px auto 22px;max-width:52ch}
+#title p{color:#b9cbc6;font-size:14px;line-height:1.9;margin:22px auto 26px;max-width:52ch;word-break:keep-all}
 #title .keys{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-bottom:24px}
 .kcap{font-family:var(--num);font-weight:800;font-size:12px;color:#cfe4f5;background:rgba(255,255,255,.09);
   border:1px solid rgba(255,255,255,.22);border-radius:8px;padding:6px 11px}
@@ -541,4 +547,43 @@ body.touch #dialog{bottom:24px;width:min(560px,64vw);left:calc(50% + 20px)}
 #shopItemList, #archive .archGrid, #help .panel, #shrineBody, #warpList, #toast {
   touch-action: pan-y !important;
   -webkit-overflow-scrolling: touch;
+}
+
+/* 첫 번째 디자인 정돈: 정보 위계, 조작 상태, 좁은 화면 */
+button:focus-visible,input:focus-visible,[tabindex]:focus-visible{
+  outline:3px solid var(--focus);outline-offset:4px;
+}
+#title button:focus-visible{outline-color:#ffe08a}
+#title .kcap{background:rgba(227,239,225,.045);border-color:rgba(206,225,208,.16);color:#b9cbc6;font-size:11px}
+#loadbar{height:4px;width:180px;margin-bottom:22px;background:rgba(255,255,255,.1)}
+#coreHud .ttl b,#quest h4{font-family:var(--body);font-weight:900;letter-spacing:-.035em}
+#quest{border-left:3px solid #579884}
+#quest .tag{color:#3c7a67;letter-spacing:.1em}
+#dialog .say{word-break:keep-all;overflow-wrap:anywhere}
+.shopHead p,.archHead p{line-height:1.65;margin-top:4px;word-break:keep-all}
+.shopCard,.archCard,.ctrl{border-width:1px}
+.shopCardName{flex-wrap:wrap;line-height:1.5}
+.shopCardDesc{line-height:1.65;margin-top:5px}
+.shopClose,.archClose,.helpClose{min-width:44px;min-height:44px;flex-shrink:0}
+#shrineBox,.shopItems,.archGrid,.helpBody{scrollbar-width:thin;scrollbar-color:#a7b9aa transparent;touch-action:pan-y}
+@media(max-width:600px){
+  #title .wrap{padding:24px 20px}
+  #title .crest{font-size:48px}
+  #title p{font-size:13px}
+  #title .keys{gap:6px;margin-bottom:20px}
+  .shopCard{align-items:stretch;flex-direction:column;padding:14px}
+  .shopCardAction{align-self:flex-end;max-width:100%}
+  .shopBuyBtn{min-height:44px;white-space:normal}
+  .shopHead,.archHead{padding:14px 16px;gap:8px}
+}
+@media(max-height:560px){
+  #title .wrap{padding:20px}
+  #title .crest{font-size:32px;animation:none}
+  .titleEyebrow{margin:8px 0}
+  #title h1{font-size:36px}
+  #title .titleSubtitle{margin-top:6px;font-size:17px}
+  #title p{margin:12px auto;font-size:12px}
+}
+@media(prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;scroll-behavior:auto!important}
 }

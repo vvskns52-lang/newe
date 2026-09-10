@@ -6,6 +6,13 @@
    ══════════════════════════════════════════════════════════ */
 const shCv=$('#shCv'), G2=shCv.getContext('2d');
 let curPuz=null, curShrine=null, shT=0, shRAF=0, shLast=0;
+let shrineSession=0;
+function shrineDelay(fn, ms){
+  const session=shrineSession;
+  return setTimeout(()=>{
+    if(session===shrineSession && STATE.mode==='shrine') fn();
+  }, ms);
+}
 
 /* 캔버스 헬퍼 */
 function rr(g,x,y,w,h,r){ r=Math.min(r,w/2,h/2); g.beginPath();
@@ -51,7 +58,7 @@ function makeApi(s){
     AUDIO.sfx('step');
     const e=api.stepEls[i]; e.classList.add('done'); e.querySelector('i').textContent='✓';
     e.animate([{transform:'scale(1)'},{transform:'scale(1.06)'},{transform:'scale(1)'}],{duration:420});
-    if(api.doneSteps.size>=api.nSteps){ api.locked=true; setTimeout(()=>showQuiz(api),650); }
+    if(api.doneSteps.size>=api.nSteps){ api.locked=true; shrineDelay(()=>showQuiz(api),650); }
   };
   api.has=i=>api.doneSteps.has(i);
 
@@ -177,15 +184,15 @@ function showQuiz(api){
           react.innerHTML = FACE + '<span>' + (qIdx + 1 < totalQ ? '정답이야! 다음 문제도 맞혀 보렴.' : A.right) + '</span>';
           ex.style.display = 'block';
 
-          setTimeout(()=>{
+          shrineDelay(()=>{
             if(qIdx + 1 < totalQ){
               qIdx++;
               delete d.dataset.busy;
               renderCurrentQuestion();
               d.scrollIntoView({behavior:'smooth', block:'center'});
             } else {
-              setTimeout(scrollShrineTop, 200);
-              setTimeout(()=>clearShrine(api.s), 1100);
+              shrineDelay(scrollShrineTop, 200);
+              shrineDelay(()=>clearShrine(api.s), 1100);
             }
           }, 1400);
         } else {
@@ -209,7 +216,7 @@ function showQuiz(api){
             btns.forEach(o=>{ o.disabled = true; });
             react.innerHTML = FACE + '<span style="color:#ff6b6b">"아직 원리를 온전히 깨닫지 못했구나. 시뮬레이션 목표를 다시 달성하여 기운을 모아오렴."</span>';
             AUDIO.sfx('bossRoar');
-            setTimeout(()=>{
+            shrineDelay(()=>{
               d.remove();
               // 마지막 목표 단계 리셋 (단순 찍기 방지 및 재도전 유도)
               const lastStep = Math.max(0, api.nSteps - 1);
@@ -246,7 +253,7 @@ function clearShrine(s){
   if(s.final) return clearFinal(s);
   const first = !STATE.cores[s.id];
   justCleared = first ? s.id : null;   /* 나가면 그 사당의 정령이 축하해 준다 */
-  STATE.cores[s.id]=true; STATE.hp=3; STATE.inv=2; save(); refreshHud(); updateCityLight();
+  STATE.cores[s.id]=true; STATE.hp=maxPlayerHp(); STATE.inv=2; save(); refreshHud(); updateCityLight();
   $('#clearIcon').textContent='💠';
   $('#clearTitle').textContent = first ? s.short+' 에너지 코어 획득!' : '시련을 다시 완수했다';
   $('#clearText').innerHTML = s.note + '<br><br><b style="color:#ffe08a">도시 전력 '+(coreCount()*10)+'%</b>' + (first?' &nbsp;·&nbsp; <b style="color:#8ef0a8">이 지역의 오염이 걷혔다</b>':'') + (first?'<div style="margin-top:10px;font-size:13px;color:#a5d8ff">📖 <b>신재생에너지 지식 도감</b>에 ['+s.short+' 발전] 카드가 등록되었습니다! (단축키 J)</div>':'');
@@ -259,7 +266,7 @@ function clearShrine(s){
 /* 마지막 시련 — 에너지 믹스 설계 완료 */
 function clearFinal(s){
   const first = !STATE.finalDone;
-  STATE.finalDone = true; STATE.hp=3; STATE.inv=2; save(); refreshHud();
+  STATE.finalDone = true; STATE.hp=maxPlayerHp(); STATE.inv=2; save(); refreshHud();
   AUDIO.sfx('clear');
   $('#clearIcon').textContent='🌇';
   $('#clearTitle').textContent = first ? '에너지 믹스 설계 완료!' : '다시 한 번 설계를 완성했다';
@@ -302,6 +309,7 @@ $('#clearBtn').onclick=()=>{
 $('#shClose').onclick=()=>closeShrine();
 
 function openShrine(s){
+  shrineSession++;
   curShrine=s; STATE.mode='shrine';
   $('#shrine').classList.add('on'); $('#prompt').classList.remove('on');
   $('#shIcon').textContent=s.icon;
@@ -315,13 +323,17 @@ function openShrine(s){
   const hb=document.createElement('button');
   hb.className='btn ghost'; hb.style.width='100%'; hb.style.fontSize='13px';
   hb.innerHTML='✨ 힌트 보기 <span style="opacity:.65">(파편 3개 소모)</span>';
+  const showHint=()=>{
+    hb.outerHTML='<div class="ctrl" style="border-color:#f4c04f;background:#fff8e6"><b style="font-size:13px">💡 힌트</b><div class="note" style="margin-top:6px">'+(PUZ_HINT[s.id]||s.note)+'</div></div>';
+  };
   hb.onclick=()=>{
     if(STATE.hintUsed[s.id]) return;
     if(STATE.sparks<3){ hb.innerHTML='✨ 파편이 부족해요 ('+STATE.sparks+'/3)'; return; }
     STATE.sparks-=3; STATE.hintUsed[s.id]=true; save(); refreshHud();
-    hb.outerHTML='<div class="ctrl" style="border-color:#f4c04f;background:#fff8e6"><b style="font-size:13px">💡 힌트</b><div class="note" style="margin-top:6px">'+(PUZ_HINT[s.id]||s.note)+'</div></div>';
+    showHint();
   };
   $('#shCtrl').appendChild(hb);
+  if(STATE.hintUsed[s.id]) showHint();
   shLast=performance.now(); shT=0;
   cancelAnimationFrame(shRAF); shLoop();
 }
@@ -331,6 +343,7 @@ function shLoop(){
   if(curPuz&&curPuz.draw) curPuz.draw(G2, shT, dt);
 }
 function closeShrine(){
+  shrineSession++;
   cancelAnimationFrame(shRAF); curPuz=null;
   $('#shrine').classList.remove('on'); STATE.mode='play';
 }

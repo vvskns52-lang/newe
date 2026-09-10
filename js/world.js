@@ -58,7 +58,9 @@ function terrainColor(y, slope, x, z){
     }
   }
   if(slope > 0.62 && y > 2) c.lerp(C_ROCK, smooth(0.62,0.95,slope)*0.72);
-  c.offsetHSL(0, 0, (rnd()-0.5)*0.04);
+  /* 넓게 이어지는 잔디 색 변화 + 기존의 작은 면별 변화 */
+  const patch=Math.sin(x*0.075+Math.sin(z*0.043))*Math.cos(z*0.065);
+  c.offsetHSL(0, 0, (rnd()-0.5)*0.024 + (y>2.4 && y<18 ? patch*0.018 : 0));
   return c;
 }
 let terrain;
@@ -86,8 +88,11 @@ let terrain;
 
 /* ══════════════ 바다 ══════════════ */
 const waterGeo = new THREE.PlaneGeometry(760,760,40,40); waterGeo.rotateX(-Math.PI/2);
-const water = new THREE.Mesh(waterGeo, new THREE.MeshLambertMaterial({
-  color:ART.water.surface, transparent:true, opacity:0.85, flatShading:true }));
+const waterMaterial = LOWQ
+  ? new THREE.MeshLambertMaterial({color:ART.water.surface, transparent:true, opacity:0.85, flatShading:true})
+  : new THREE.MeshPhongMaterial({color:ART.water.surface, specular:ART.water.specular,
+      shininess:ART.water.shininess, transparent:true, opacity:0.85, flatShading:true});
+const water = new THREE.Mesh(waterGeo, waterMaterial);
 water.position.y = 0.18; scene.add(water);
 const waterBase = waterGeo.attributes.position.array.slice();
 const deep = new THREE.Mesh(new THREE.PlaneGeometry(820,820), glow(ART.water.deep));
@@ -199,9 +204,9 @@ function nearShrine(x,z,r){ for(const s of SHRINES) if(Math.hypot(x-s.x,z-s.z)<r
   })();
 
   inst(TREE_GEO.trunk, matte(ART.trunk), trunks, 'trunk');
-  canopies.forEach((L,i)=>inst(TREE_GEO.canopy, matte(FOLI[i]), L, 'canopy'));
-  bushes.forEach((L,i)=>inst(TREE_GEO.bush, matte(ART.bush[i]), L, 'flat'));
-  rocks.forEach((L,i)=>inst(ROCK_GEO, matte(ROCKC[i]), L, 'rock'));
+  canopies.forEach((L,i)=>inst(TREE_GEO.canopy, matte(FOLI[i],{vertexColors:true}), L, 'canopy'));
+  bushes.forEach((L,i)=>inst(TREE_GEO.bush, matte(ART.bush[i],{vertexColors:true}), L, 'flat'));
+  rocks.forEach((L,i)=>inst(ROCK_GEO, matte(ROCKC[i],{vertexColors:true}), L, 'rock'));
   flowers.forEach((L,i)=>inst(new THREE.SphereGeometry(0.13,8,6), matte(ART.flower[i]), L, 'flat', false));
 
   /* 풀 */
