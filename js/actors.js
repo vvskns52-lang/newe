@@ -254,7 +254,12 @@ NPCS.forEach(n=>{
   lb.position.y=3.7; lb.scale.set(0.175,0.055,1); h.g.add(lb);
   const mark=new THREE.Mesh(new THREE.OctahedronGeometry(0.3,0), new THREE.MeshBasicMaterial({color:0xffd24a}));
   mark.position.y=3.15; h.g.add(mark);
-  const bs=blobShadow(2.3); bs.position.y=0.04; h.g.add(bs);
+  if(n.id==='mayor'){
+    const quest=makeLabel('!','먼저 이야기해 보세요','#ffd24a');
+    quest.scale.set(0.13,0.045,1);quest.position.y=0.7;mark.add(quest);
+    mark.scale.setScalar(1.25);
+  }
+  const bs=blobShadow(2.8); bs.position.y=cityFloorHeight(n.x,n.z)-y+0.07; h.g.add(bs);
   scene.add(h.g);
   npcObjs.push({data:n, h, mark, y});
 });

@@ -298,7 +298,7 @@ addEventListener('keydown', e=>{
 });
 addEventListener('keyup', e=>{ keys[e.key.toLowerCase()]=false; });
 
-const CAM={yaw:0, pitch:0.34, dist:12, tYaw:0, tPitch:0.34, tDist:12, shake:0};
+const CAM={yaw:0.42, pitch:0.48, dist:18, tYaw:0.42, tPitch:0.48, tDist:18, shake:0};
 function triggerCamShake(amt){ CAM.shake = Math.max(CAM.shake, amt); }
 const TOUCH={x:0, z:0, mag:0, run:false, jump:false};
 function resetInput(){
@@ -816,7 +816,7 @@ function checkCityCollision(x, z, r = 0.8){
     const sw=Math.sin(P.walk*2.1)*Math.min(P.speed/9,1);
     player.g.rotation.y = P.yaw;
     /* 발밑 원반 그림자 — 점프하면 작아지고 옅어진다 */
-    const gsy=hAt(P.pos.x,P.pos.z), lift=Math.max(0,P.pos.y-gsy);
+    const gsy=cityFloorHeight(P.pos.x,P.pos.z), lift=Math.max(0,P.pos.y-gsy);
     playerShadow.position.set(P.pos.x, gsy+0.07, P.pos.z);
     const psc=Math.max(1.5, 2.5-lift*0.14);
     playerShadow.scale.setScalar(psc);
@@ -839,7 +839,8 @@ function checkCityCollision(x, z, r = 0.8){
     }
     const gcy=hAt(cx,cz)+2.2; if(cyy<gcy) cyy=gcy;
     camera.position.set(cx,cyy,cz);
-    camera.lookAt(P.pos.x, P.pos.y+1.9, P.pos.z);
+    const cityView=1-smooth(12,32,Math.hypot(P.pos.x,P.pos.z));
+    camera.lookAt(P.pos.x, P.pos.y+1.9+cityView*3.2, P.pos.z);
 
 
     /* 상호작용 대상 */
@@ -1068,7 +1069,7 @@ function checkCityCollision(x, z, r = 0.8){
   }
   /* NPC 마커 */
   npcObjs.forEach(n=>{
-    n.mark.rotation.y+=dt*2; n.mark.position.y=3.7+Math.sin(t*2.4)*0.16;
+    n.mark.rotation.y+=dt*2; n.mark.position.y=(n.data.id==='mayor'?5.0:3.15)+Math.sin(t*2.4)*0.16;
     n.mark.visible = !STATE.talked[n.data.id];
     const ld=Math.hypot(P.pos.x-n.data.x,P.pos.z-n.data.z);
     n.h.g.children.forEach(c=>{ if(c.isSprite) c.material.opacity=clamp(1.5-ld/34,0,1); });

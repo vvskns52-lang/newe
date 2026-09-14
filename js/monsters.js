@@ -13,8 +13,8 @@ const MTYPES = {
          fact:'지구를 데우는 대표 <b>온실가스</b>. 눈에 보이지 않아 더 위험합니다.' },
 };
 const MON = { pool:[], bolts:[], drops:[], zones:[], seen:{}, spawnT:0, ready:false };
-/* 몬스터 밀도 — 학생 피로도 완화 (동시 스폰 상한 및 스폰 주기 쾌적화) */
-function monLv(){ return { cap: LOWQ ? 5 : 7, every: 1.8 }; }
+/* 필드 조우 빈도 — 저사양에서는 동시 개체 수를 낮게 유지한다. */
+function monLv(){ return { cap: LOWQ ? 7 : 10, every: 1.2 }; }
 function setMonLevel(i){ STATE.monLevel=2; save(); }
 const SAFE_R = 34;                       // 빛의 도시 안전지대
 
@@ -205,7 +205,7 @@ function updateMonsters(dt, t){
   if(MON.spawnT<=0){
     const LV=monLv();
     MON.spawnT=LV.every;
-    const cap=Math.min(LV.cap, LOWQ?6:9);
+    const cap=Math.min(LV.cap, MON.pool.length);
     const live=MON.pool.filter(m=>m.alive).length;
     if(live<cap){
       const near=MON.zones.filter(zn=>zoneAlive(zn) && Math.hypot(P.pos.x-zn.s.x,P.pos.z-zn.s.z)<65);
@@ -214,8 +214,8 @@ function updateMonsters(dt, t){
         const zn=near[(rnd()*near.length)|0];
         spawnCenter = { x:zn.s.x, z:zn.s.z, rMin:5, rMax:20 };
       } else {
-        // 사당 사이 길목 및 들판: 플레이어 주변 반경 18~36m
-        spawnCenter = { x:P.pos.x, z:P.pos.z, rMin:18, rMax:36 };
+        // 사당 사이 길목 및 들판: 조금 더 가까운 18~30m에서 조우
+        spawnCenter = { x:P.pos.x, z:P.pos.z, rMin:18, rMax:30 };
       }
       for(let tryN=0; tryN<10; tryN++){
         const a=rnd()*6.283, rr=spawnCenter.rMin + rnd()*(spawnCenter.rMax-spawnCenter.rMin);

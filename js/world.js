@@ -257,10 +257,40 @@ function nearShrine(x,z,r){ for(const s of SHRINES) if(Math.hypot(x-s.x,z-s.z)<r
 const cityLights = [];
 const cityGroup = new THREE.Group(); scene.add(cityGroup);
 const cityHouses = new THREE.Group(); cityGroup.add(cityHouses);   /* 멀리서는 감출 집들 */
+function cityFloorHeight(x,z){
+  return Math.hypot(x,z)<16.8 ? Math.max(hAt(x,z),hAt(0,0)+0.5) : hAt(x,z);
+}
 (function buildCity(){
   const gy = hAt(0,0), C = ART.city;
   const plaza = new THREE.Mesh(new THREE.CylinderGeometry(17,17.6,0.7,32), matte(C.plaza));
   plaza.position.set(0, gy+0.15, 0); cityGroup.add(plaza);
+  /* 한 장의 텍스처로 포장과 시장 안내 길을 표현한다. */
+  const pavingCanvas=document.createElement('canvas'); pavingCanvas.width=pavingCanvas.height=512;
+  const paving=pavingCanvas.getContext('2d');
+  paving.fillStyle='#d2c096'; paving.fillRect(0,0,512,512);
+  paving.strokeStyle='#b5a47f'; paving.lineWidth=2;
+  for(let r=64;r<256;r+=32){
+    paving.beginPath(); paving.arc(256,256,r,0,Math.PI*2); paving.stroke();
+    for(let k=0;k<24;k++){
+      const a=(k+(r/32%2)*0.5)*Math.PI/12;
+      paving.beginPath();paving.moveTo(256+Math.cos(a)*r,256+Math.sin(a)*r);
+      paving.lineTo(256+Math.cos(a)*(r+32),256+Math.sin(a)*(r+32));paving.stroke();
+    }
+  }
+  const pavingTex=new THREE.CanvasTexture(pavingCanvas); pavingTex.encoding=THREE.sRGBEncoding;
+  const pavingDisk=new THREE.Mesh(new THREE.CircleGeometry(16.9,64),matte(0xffffff,{map:pavingTex}));
+  pavingDisk.rotation.x=-Math.PI/2;pavingDisk.position.y=gy+0.515;cityGroup.add(pavingDisk);
+  const route=[];
+  /* 탑을 피해 광장 서쪽으로 돌아 시장에게 이어지는 디딤돌 */
+  for(let i=0;i<18;i++){
+    const t=i/17, x=-11*Math.sin(t*Math.PI/2), z=7-17*t;
+    route.push([x,cityFloorHeight(x,z)+0.04,z]);
+  }
+  const routeMesh=new THREE.InstancedMesh(new THREE.BoxGeometry(0.85,0.06,0.6),matte(0xece0bd),route.length);
+  const routeDummy=new THREE.Object3D();
+  route.forEach((p,i)=>{routeDummy.position.set(...p);routeDummy.rotation.y=-0.5;routeDummy.updateMatrix();routeMesh.setMatrixAt(i,routeDummy.matrix);});
+  cityGroup.add(routeMesh);
+  const towerShadow=blobShadow(12);towerShadow.position.y=gy+0.54;cityGroup.add(towerShadow);
   const ring = new THREE.Mesh(new THREE.TorusGeometry(14.5,0.45,6,48), matte(C.plazaEdge));
   ring.rotation.x = Math.PI/2; ring.position.set(0, gy+0.55, 0); cityGroup.add(ring);
 
@@ -345,6 +375,8 @@ const cityHouses = new THREE.Group(); cityGroup.add(cityHouses);   /* 멀리서�
   ];
 
   /* 집 — 위로 갈수록 살짝 좁아지는 벽, 처마가 나온 지붕, 굴뚝 */
+  const trimParts=[];
+  const trimGeo=new THREE.BoxGeometry(1,1,1);
   for(let i=0;i<16;i++){
     const a = i/16*Math.PI*2 + 0.16, rr = 27 + (i%3)*4.6;
     const x = Math.cos(a)*rr, z = Math.sin(a)*rr, y = hAt(x,z);
@@ -357,15 +389,32 @@ const cityHouses = new THREE.Group(); cityGroup.add(cityHouses);   /* 멀리서�
     const roof = new THREE.Mesh(new THREE.ConeGeometry(w*1.02, rh, 4), matte(C.roof[(rnd()*4)|0]));
     roof.rotation.y = Math.PI/4; roof.position.y = h+rh/2-0.06; g.add(roof);
     const door = new THREE.Mesh(new THREE.PlaneGeometry(0.62, 1.15), matte(C.wood));
-    door.position.set(0, 0.58, w*0.665); g.add(door);
+    const facadeAt=height=>w*(0.72-0.10*height/h)/Math.sqrt(2)+0.04;
+    door.position.set(0, 0.58, facadeAt(0)); g.add(door);
     if(rnd()<0.6){
       const ch = new THREE.Mesh(new THREE.CylinderGeometry(0.20,0.24,1.1,6), matte(C.stone));
       ch.position.set(w*0.28, h+1.3, -w*0.22); g.add(ch);
     }
     const win = new THREE.Mesh(new THREE.PlaneGeometry(0.85,1.0), glow(0x3b4a5c));
-    win.position.set(0, h*0.68, w*0.648); g.add(win); cityLights.push(win.material);
+    win.position.set(0, h*0.68, facadeAt(h*0.68-0.5)); g.add(win); cityLights.push(win.material);
+    /* 창틀·현관 계단·처마: 같은 재질의 상자는 마지막에 하나로 묶는다. */
+    const trim=(px,py,pz,sx,sy,sz)=>{
+      const part=new THREE.Object3D();part.position.set(px,py,pz);part.scale.set(sx,sy,sz);g.add(part);trimParts.push(part);
+    };
+    const wz=win.position.z+0.03;
+    trim(0,h*0.68+0.55,wz,1.02,0.10,0.12);
+    trim(0,h*0.68-0.55,wz,1.02,0.10,0.18);
+    trim(-0.47,h*0.68,wz,0.09,1.1,0.12);trim(0.47,h*0.68,wz,0.09,1.1,0.12);
+    trim(0,h*0.68,wz,0.06,1.0,0.10);
+    trim(0,0.08,door.position.z+0.18,1.1,0.16,0.65);
+    trim(0,h-0.10,0,w*1.43,0.16,w*1.43);
+    const houseShadow=blobShadow(w*1.9);houseShadow.position.y=0.06;g.add(houseShadow);
     if(i%4===0){ const pl=new THREE.PointLight(0xffd27a,0,12); pl.position.set(0,h*0.6,0); g.add(pl); cityLights.push(pl); }
     g.position.set(x,y,z); g.rotation.y = -a + Math.PI/2; cityHouses.add(g);
   }
+  cityHouses.updateMatrixWorld(true);
+  const trims=new THREE.InstancedMesh(trimGeo,matte(C.wood),trimParts.length);
+  trimParts.forEach((part,i)=>{trims.setMatrixAt(i,part.matrixWorld);part.parent.remove(part);});
+  trims.frustumCulled=false;cityHouses.add(trims);
   window.CITY_COLLIDERS = CITY_COLLIDERS;
 })();
