@@ -1072,7 +1072,7 @@ function checkCityCollision(x, z, r = 0.8){
     n.mark.rotation.y+=dt*2; n.mark.position.y=(n.data.id==='mayor'?5.0:3.15)+Math.sin(t*2.4)*0.16;
     n.mark.visible = !STATE.talked[n.data.id];
     const ld=Math.hypot(P.pos.x-n.data.x,P.pos.z-n.data.z);
-    n.h.g.children.forEach(c=>{ if(c.isSprite) c.material.opacity=clamp(1.5-ld/34,0,1); });
+    n.h.g.children.forEach(c=>{ if(c.isSprite) c.material.opacity=clamp(1.5-ld/(n.data.id==='mayor'?60:34),0,1); });
   });
   /* 물결 (몇 프레임에 한 번만 계산) */
   if(mmTick % PERF.waterEvery === 0){
