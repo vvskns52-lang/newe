@@ -392,7 +392,11 @@ function updateBoss(dt, t){
 
   const stage = BOSS.currentStage || 1;
   const cfg = BOSS_CONFIGS[stage - 1] || BOSS_CONFIGS[0];
-  const safeR = (typeof SAFE_R !== 'undefined' ? SAFE_R : 32);
+  /* 예전에는 도시 안전지대(SAFE_R) 안에 들어가면 보스의 모든 공격이 무효였다.
+     그러면 안전지대에 서서 F만 눌러도 이겨 버려서 보스가 의미가 없었다.
+     지금은 안전지대에서도 보스 공격이 그대로 들어온다 — 도시를 덮친 보스이니
+     도시 안이라고 안전할 이유가 없다. (일반 오염 몬스터는 여전히 안전지대 밖에만 있다)
+     쓰러지면 downPlayer() 가 보스를 제자리로 되돌리므로 부활 직후 연속 피격은 없다. */
 
   /* 탄환 업데이트 */
   if(BOSS.projs){
@@ -405,17 +409,12 @@ function updateBoss(dt, t){
       p.mesh.position.y += p.vy * dt;
       p.mesh.position.z += p.vz * dt;
 
-      // 도시 안전지대(마을) 내부 침범 시 탄환 즉시 소멸 (4번 개선)
-      if(Math.hypot(p.mesh.position.x, p.mesh.position.z) < safeR){
-        p.on = false; p.mesh.visible = false; continue;
-      }
-
       // 지면 충돌 체크
       const gy = hAt(p.mesh.position.x, p.mesh.position.z);
       if(p.mesh.position.y < gy + 0.25){
         p.on = false; p.mesh.visible = false;
-        // 2차 보스: 지면에 닿은 곳에 대형 독성 슬러지 웅덩이 생성 (안전지대 밖에서만)
-        if(cfg.hasPuddle && BOSS.puddles && Math.hypot(p.mesh.position.x, p.mesh.position.z) >= safeR){
+        // 2차 보스: 지면에 닿은 곳에 대형 독성 슬러지 웅덩이 생성
+        if(cfg.hasPuddle && BOSS.puddles){
           const pd = BOSS.puddles.find(item => !item.on);
           if(pd){
             pd.on = true;
@@ -428,11 +427,11 @@ function updateBoss(dt, t){
         continue;
       }
 
-      // 플레이어 피격 판정 (안전지대 밖에서만 피격)
+      // 플레이어 피격 판정
       const dp = Math.hypot(p.mesh.position.x - P.pos.x, p.mesh.position.z - P.pos.z);
       if(dp < 1.9 && Math.abs(p.mesh.position.y - (P.pos.y + 1.0)) < 2.2){
         p.on = false; p.mesh.visible = false;
-        if(STATE.inv <= 0 && Math.hypot(P.pos.x, P.pos.z) >= safeR){
+        if(STATE.inv <= 0){
           hurtPlayer({ g: { position: p.mesh.position } });
         }
       }
@@ -444,10 +443,10 @@ function updateBoss(dt, t){
     for(const pd of BOSS.puddles){
       if(!pd.on) continue;
       pd.life -= dt;
-      if(pd.life <= 0 || Math.hypot(pd.pos.x, pd.pos.z) < safeR){ pd.on = false; pd.mesh.visible = false; continue; }
+      if(pd.life <= 0){ pd.on = false; pd.mesh.visible = false; continue; }
       pd.mesh.material.opacity = Math.min(0.72, pd.life / 1.5);
       const dp = Math.hypot(P.pos.x - pd.pos.x, P.pos.z - pd.pos.z);
-      if(dp < 4.2 && P.onGround && Math.hypot(P.pos.x, P.pos.z) >= safeR){
+      if(dp < 4.2 && P.onGround){
         P.vx *= 0.82; P.vz *= 0.82; // 이동 둔화
         if(STATE.inv <= 0){
           hurtPlayer({ g: { position: pd.pos } });
@@ -466,7 +465,7 @@ function updateBoss(dt, t){
 
     const dp = Math.hypot(P.pos.x - BOSS.shockWave.pos.x, P.pos.z - BOSS.shockWave.pos.z);
     if(!BOSS.shockWave.hit && Math.abs(dp - sr) < 1.8){
-      if(P.onGround && STATE.inv <= 0 && Math.hypot(P.pos.x, P.pos.z) >= safeR){
+      if(P.onGround && STATE.inv <= 0){
         BOSS.shockWave.hit = true;
         hurtPlayer({ g: { position: BOSS.shockWave.pos } });
         toast('💥', '지진파 피격! [Space] 점프로 뛰어넘어야 합니다!', 1800);
@@ -526,7 +525,8 @@ function updateBoss(dt, t){
   if(d > minStopDist && d < 82){
     const sp = (half ? cfg.speed * 1.3 : cfg.speed) * dt;
     const nx = g.position.x + Math.sin(face) * sp, nz = g.position.z + Math.cos(face) * sp;
-    if(Math.hypot(nx, nz) > (safeR - 2) && Math.hypot(nx, nz) < 95){
+    /* 도시 안까지 쫓아온다 (예전에는 safeR 바깥에만 머물렀다) */
+    if(Math.hypot(nx, nz) < 95){
       g.position.x = nx; g.position.z = nz; g.position.y = hAt(nx, nz);
     }
   }
@@ -598,11 +598,9 @@ function updateBoss(dt, t){
     p.m.position.set(Math.cos(p.a) * p.r, p.y + Math.sin(t * 0.9 + p.a) * 0.9, Math.sin(p.a) * p.r);
   });
 
-  /* 근접 접촉 피해 (안전지대 밖에서만) */
+  /* 근접 접촉 피해 */
   if(STATE.inv <= 0 && d < 10.0 * cfg.scale && Math.abs(P.pos.y - g.position.y) < 13 * cfg.scale){
-    if(Math.hypot(P.pos.x, P.pos.z) >= safeR){
-      hurtPlayer({ g: { position: g.position } });
-    }
+    hurtPlayer({ g: { position: g.position } });
   }
   bossBar(BOSS.alive && BOSS.die <= 0);
 }
